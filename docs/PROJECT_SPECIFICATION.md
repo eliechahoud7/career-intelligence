@@ -122,8 +122,8 @@ occupation_source_mapping  (links source-specific codes to the unified occupatio
 |-------|-------------|--------|
 | 0 | Repository initialisation, specification | **Done** |
 | 1 | Data-source verification and selection (France, French) | **Done** — see DATA_SOURCES.md |
-| 2 | Databricks workspace setup (catalog, schemas, volume, secrets) | Planned |
-| 3 | Bronze connectors (one source at a time) | **In progress** — BMO 2026 done locally |
+| 2 | Databricks workspace setup (catalog, schemas, volume, secrets) | **In progress** — catalog, `bronze` schema, `landing` volume |
+| 3 | Bronze connectors (one source at a time) | **In progress** — BMO 2026 → `career_intelligence.bronze.bmo_2026` |
 | 4 | Silver transformations + data-quality checks | Planned |
 | 5 | Gold integrated model + SQL views | Planned |
 | 6 | Search layer + Streamlit application | Planned |

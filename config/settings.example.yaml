@@ -16,7 +16,8 @@ databricks:
     bronze: bronze            # raw API payloads, as ingested
     silver: silver            # cleaned, typed, deduplicated
     gold: gold                # integrated, search-ready tables
-  # Unity Catalog volume for landing raw files
+  # Unity Catalog volume for landing raw/staged files (lives in the bronze schema):
+  #   /Volumes/career_intelligence/bronze/landing/<publisher>/<dataset>/<year>/
   landing_volume: landing
 
 ingestion:

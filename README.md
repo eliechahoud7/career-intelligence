@@ -91,6 +91,29 @@ Bronze-ready Parquet file with lineage columns (`_source_*`, `_run_id`, `_ingest
 manifest (checksum, validation report, column profile). Download URLs come only from verified
 entries in `config/sources.yaml`.
 
+## Databricks (Free Edition)
+
+Authentication uses the Databricks CLI with OAuth (no token in the repository):
+
+```powershell
+databricks auth login --host https://<your-workspace>.cloud.databricks.com --profile career-intelligence
+```
+
+| Object | Name |
+|---|---|
+| Catalog | `career_intelligence` |
+| Schema | `career_intelligence.bronze` |
+| Volume | `career_intelligence.bronze.landing` → `/Volumes/career_intelligence/bronze/landing/` |
+| Tables | `career_intelligence.bronze.bmo_2026` |
+
+Load steps (run SQL on the SQL warehouse, e.g. from the SQL editor):
+
+1. `sql/00_setup/01_catalog_schema_volume.sql` — catalog, schema, volume (idempotent)
+2. Upload the staged file:
+   `databricks fs cp data\staging\france_travail\bmo\bmo_2026.parquet dbfs:/Volumes/career_intelligence/bronze/landing/france_travail/bmo/2026/bmo_2026.parquet --profile career-intelligence`
+3. `sql/bronze/01_bmo_2026.sql` — create the Bronze Delta table
+4. `sql/bronze/01_bmo_2026_checks.sql` — verification queries with expected values
+
 PySpark is provided by the Databricks runtime. For local Spark execution (requires Java 17)
 install the optional extra: `python -m pip install -e ".[spark]"`.
 

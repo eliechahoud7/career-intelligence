@@ -190,5 +190,5 @@ Demandeurs d'emploi inscrits (quarterly CVS-CJO series), Offres d'emploi diffus�
 
 - [ ] **PENDING (deferred 2026-11-09):** download the DARES FAP ↔ PCS ↔ ROME table manually; check its ROME version and licence. *Blocks any BMO ↔ ROME join; no join is attempted until then.*
 - [x] ~~Decide whether to register on francetravail.io~~ — **decided 2026-11-09: not now.** BMO 2026 is the first employment dataset.
-- [ ] Test outbound access from Databricks Free Edition serverless to `api.francetravail.fr`, `data.onisep.fr`, `www.francetravail.org` and `www.data.gouv.fr`.
+- [ ] Test outbound access (still open: BMO was loaded by uploading the local staging file, so this is not yet needed) from Databricks Free Edition serverless to `api.francetravail.fr`, `data.onisep.fr`, `www.francetravail.org` and `www.data.gouv.fr`.
 - [ ] Read the francetravail.io terms of use if an API is adopted.
