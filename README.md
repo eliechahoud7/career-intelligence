@@ -105,7 +105,7 @@ databricks auth login --host https://<your-workspace>.cloud.databricks.com --pro
 | Catalog | `career_intelligence` |
 | Schemas | `career_intelligence.bronze`, `career_intelligence.silver` |
 | Volume | `career_intelligence.bronze.landing` → `/Volumes/career_intelligence/bronze/landing/` |
-| Tables | `bronze.bmo_2026` (raw text) → `silver.bmo_2026` (typed, cleaned)<br>`bronze.rome_<entity>` — 29 raw ROME 4.0 tables, one per source CSV |
+| Tables | `bronze.bmo_2026` (raw text) → `silver.bmo_2026` (typed, cleaned)<br>`bronze.rome_<entity>` — 29 raw ROME 4.0 tables, one per source CSV<br>`silver.rome_*` — 24 clean ROME tables: 13 reference entities + 11 occupation links |
 
 Load steps (run SQL on the SQL warehouse, e.g. from the SQL editor):
 
@@ -117,6 +117,7 @@ Load steps (run SQL on the SQL warehouse, e.g. from the SQL editor):
 5. `sql/silver/01_bmo_2026.sql` — Silver table: measures as `INT` (`NULL` + `*_secret` flag for statistical secrecy), label whitespace normalised (incl. non-breaking spaces)
 6. `sql/silver/01_bmo_2026_checks.sql` — every `check_*` column must be `true`
 7. ROME: upload the raw zip and the staging folder (commands in the header of `sql/bronze/02_rome.sql`), then run `sql/bronze/02_rome.sql` (29 tables) and `sql/bronze/02_rome_checks.sql`
+8. `sql/silver/02_rome.sql` (24 tables) and `sql/silver/02_rome_checks.sql` — every `check_*` must be `true`
 
 PySpark is provided by the Databricks runtime. For local Spark execution (requires Java 17)
 install the optional extra: `python -m pip install -e ".[spark]"`.

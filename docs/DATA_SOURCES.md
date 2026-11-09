@@ -78,10 +78,18 @@ No authentication. **GET only** — a `HEAD` request returns 404.
 - 29 CSVs + `version.txt`; comma-separated, quoted, LF. Phase 02 counts for `centre_interet`
   (**30**, not 60) and `secteur_activite` (**35**, not 70) were wrong: they contain quoted
   multi-line cells *and* blank lines between records. `type_referentiel` is empty.
-- All referentials have unique codes; all link tables are unique on their natural key;
-  `arborescence_competences` is unique on (macro-competence, competence) only — 15 competences
-  sit under 2 macro-competences, and 16 macro-competences (savoir-être) have **no** child
-  competence (`code_ogr_competence = ''`).
+- All referentials have unique codes; all link tables are unique on their natural key.
+  *Correction (Phase 07):* `arborescence_competences` was reported as having 15 competences
+  under 2 macro-competences — wrong: those "duplicates" were the 16 empty `code_ogr_competence`
+  values. Every competence has **exactly one** macro-competence; the 16 savoir-être
+  macro-competences have **no** child competence.
+- `referentiel_competence` holds **both levels**: 506 macro-compétences (490 savoir-faire,
+  16 savoir-être; `code_macro_comp` set) and 19,582 compétences (all savoir-faire;
+  parent in `code_ogr_macro_comp`, identical to `arborescence_competences`).
+- `coherence_item` contains exactly the (occupation, item) pairs of link blocks 5 and 6;
+  it only adds `coeur_metier` (22,031 `Principale`).
+- `arborescence_secteur_naf.code_secteur_naf` joins `secteur_naf.code_secteur_naf`
+  (not `code_tech_secteur_naf`).
 - `item` (35,981) = `referentiel_competence` (20,088) ⊎ `referentiel_savoir` (15,699) ⊎
   `referentiel_contexte_travail` (194), with no overlap.
 - **`liens_rome_referentiels.code_ogr` is polymorphic** — its target depends on the block:
@@ -101,6 +109,19 @@ No authentication. **GET only** — a `HEAD` request returns 404.
   lineage `_source_*`, `_rome_version`, `_source_row`, `_run_id`, `_ingested_at`.
   Load: `sql/bronze/02_rome.sql`; checks: `sql/bronze/02_rome_checks.sql`.
   The JSON archive is not loaded (same content, denormalised).
+- **Silver (Phase 07):** 24 tables `career_intelligence.silver.rome_*` — 13 reference tables
+  (`rome_metier`, `rome_appellation`, `rome_competence`, `rome_macro_competence`, `rome_savoir`,
+  `rome_contexte_travail`, domains, centres d'intérêt, sectors, themes, NAF) and 11
+  occupation-link tables; the polymorphic link table is split by block into
+  `rome_metier_appellation` (2), `rome_metier_savoir_faire` (5/1 — target is a Compétence
+  **or** a Macro-compétence, see `niveau_competence`: 47,480 / 13,037), `rome_metier_savoir_etre`
+  (5/2), `rome_metier_savoir` (5/3), `rome_metier_contexte_travail` (6). `''` → NULL, flags kept
+  as published (O/N, oui/non). Not carried over (redundant): `cr_gd_dp_appellations`,
+  `composition_bloc`, `descriptif_rubrique`, `item`, `type_referentiel`.
+  Build: `sql/silver/02_rome.sql`; checks: `sql/silver/02_rome_checks.sql`.
+- **Open:** `code_rome_parent` differs from `code_rome` for 1,391 occupations (405 distinct
+  parents, all existing). Its meaning is not documented in the open data — kept as published,
+  not interpreted.
 
 ### 1b. ROME ↔ Formacode V14 — ✅ verified
 `261014-ref-formacode-v14-rome-26m10-v62-pour-open-data.xlsx` — 5,958 rows:
