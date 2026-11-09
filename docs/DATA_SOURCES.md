@@ -146,7 +146,8 @@ Organisation on data.gouv.fr: [France Travail](https://www.data.gouv.fr/organiza
 | Secrecy `*` | `met` 24.2 % · `xmet` 48.6 % · `smet` 74.2 % of rows | kept verbatim in Bronze; typed to null + flag in Silver |
 | Codes | 217 occupation codes, all match `[A-Z][A-Z0-9][A-Z]\d{2}` (e.g. `A0X40`, `QAX01`); 8 families; 18 regions; 101 departments; 406 bassins; 361 CLPE | format checks |
 | Consistency | `xmet ≤ met` and `smet ≤ met` on all non-secret rows; no zero values | check (warning if violated) |
-| Text quality | 257 `Nom métier BMO` values with trailing spaces | trimmed in Silver |
+| Text quality | 1 occupation label (257 rows) ends with a **non-breaking space** U+00A0 — SQL `trim()` does not remove it; 2 bassin labels contain an internal double space (`AIX  GARDANNE SALON`, `LURE  / HERICOURT`) | Silver: every whitespace run (space, tab, U+00A0, U+202F) → one space, then edges trimmed. 257 occupation rows and 254 bassin rows changed, whitespace only |
+| Code ↔ label | strictly 1:1 for occupation, family, region, department and bassin | — |
 | Totals | 2,237,486 recruitment projects in non-secret cells | — |
 
 Connector: `career_intelligence.ingestion.bmo` → raw `data/raw/france_travail/bmo/2026/bmo_2026.xlsx`,

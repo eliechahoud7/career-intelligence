@@ -102,9 +102,9 @@ databricks auth login --host https://<your-workspace>.cloud.databricks.com --pro
 | Object | Name |
 |---|---|
 | Catalog | `career_intelligence` |
-| Schema | `career_intelligence.bronze` |
+| Schemas | `career_intelligence.bronze`, `career_intelligence.silver` |
 | Volume | `career_intelligence.bronze.landing` → `/Volumes/career_intelligence/bronze/landing/` |
-| Tables | `career_intelligence.bronze.bmo_2026` |
+| Tables | `bronze.bmo_2026` (raw text) → `silver.bmo_2026` (typed, cleaned) |
 
 Load steps (run SQL on the SQL warehouse, e.g. from the SQL editor):
 
@@ -113,6 +113,8 @@ Load steps (run SQL on the SQL warehouse, e.g. from the SQL editor):
    `databricks fs cp data\staging\france_travail\bmo\bmo_2026.parquet dbfs:/Volumes/career_intelligence/bronze/landing/france_travail/bmo/2026/bmo_2026.parquet --profile career-intelligence`
 3. `sql/bronze/01_bmo_2026.sql` — create the Bronze Delta table
 4. `sql/bronze/01_bmo_2026_checks.sql` — verification queries with expected values
+5. `sql/silver/01_bmo_2026.sql` — Silver table: measures as `INT` (`NULL` + `*_secret` flag for statistical secrecy), label whitespace normalised (incl. non-breaking spaces)
+6. `sql/silver/01_bmo_2026_checks.sql` — every `check_*` column must be `true`
 
 PySpark is provided by the Databricks runtime. For local Spark execution (requires Java 17)
 install the optional extra: `python -m pip install -e ".[spark]"`.
