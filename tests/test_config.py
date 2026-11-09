@@ -32,7 +32,13 @@ def test_missing_settings_file_raises(monkeypatch: pytest.MonkeyPatch, tmp_path:
         config.load_settings(load_env=False)
 
 
-ALLOWED_STATUSES = {"verified", "requires_registration", "manual_download", "restricted"}
+ALLOWED_STATUSES = {
+    "verified",
+    "verified_manual",
+    "requires_registration",
+    "manual_download",
+    "restricted",
+}
 
 
 def test_source_registry_structure() -> None:
@@ -43,6 +49,24 @@ def test_source_registry_structure() -> None:
         for res in src["resources"]:
             assert {"id", "type", "url", "auth", "status"} <= res.keys()
             assert res["status"] in ALLOWED_STATUSES
+
+
+def test_manual_resources_are_pinned_by_checksum() -> None:
+    """A manually downloaded file has no URL but a source page and sha256 per file."""
+    manual = [
+        r for s in config.load_sources() for r in s["resources"] if r["status"] == "verified_manual"
+    ]
+    assert manual
+    for res in manual:
+        assert res["url"] is None and res["source_page"].startswith("https://")
+        for f in res["files"].values():
+            assert len(f["sha256"]) == 64 and int(f["sha256"], 16) >= 0
+    res = config.get_manual_resource("dares_rome_qualif_fap2021")
+    assert res["source_id"] == "dares_fap" and "UNCONFIRMED" in res["license"]
+    with pytest.raises(config.ConfigError):
+        config.get_resource("dares_rome_qualif_fap2021")  # never fetchable automatically
+    with pytest.raises(config.ConfigError):
+        config.get_manual_resource("rome_bulk_csv")
 
 
 def test_only_verified_resources_have_urls() -> None:

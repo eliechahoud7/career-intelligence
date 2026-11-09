@@ -92,6 +92,25 @@ def get_resource(resource_id: str) -> dict[str, Any]:
     raise ConfigError(f"Unknown resource id in sources.yaml: {resource_id}")
 
 
+def get_manual_resource(resource_id: str) -> dict[str, Any]:
+    """Return a manually downloaded resource (status ``verified_manual``).
+
+    Such resources have no fetchable URL; their content is pinned by per-file sha256.
+    """
+    for source in load_sources():
+        for resource in source.get("resources", []):
+            if resource.get("id") == resource_id:
+                if resource.get("status") != "verified_manual" or not resource.get("files"):
+                    raise ConfigError(f"Resource '{resource_id}' is not a verified manual resource")
+                return {
+                    **resource,
+                    "source_id": source["id"],
+                    "publisher": source.get("publisher"),
+                    "license": resource.get("license") or source.get("license"),
+                }
+    raise ConfigError(f"Unknown resource id in sources.yaml: {resource_id}")
+
+
 def project_path(relative: str | Path) -> Path:
     """Resolve a path from settings (relative to the project root) to an absolute path."""
     path = Path(relative)

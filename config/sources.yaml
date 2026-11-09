@@ -9,6 +9,7 @@
 #   requires_registration  existence confirmed, but needs a francetravail.io account
 #                          before resource paths/schemas can be verified
 #   manual_download        file exists but cannot be fetched automatically
+#   verified_manual        downloaded manually (no fetchable URL); content pinned by sha256
 #   restricted             not available to this project at present
 #
 # Rules: a `url` is recorded ONLY if it was successfully requested during
@@ -160,10 +161,23 @@ sources:
         auth: none
         notes: "FAP 22 / 86 / 228 / 341 hierarchy (341 rows). No ROME column."
         status: verified
-      - id: dares_fap_rome_crosswalk
-        type: bulk_download
-        url: null            # DARES website is behind a captcha (bot protection)
+      - id: dares_rome_qualif_fap2021
+        type: manual_download
+        format: csv (cp1252, ';', CRLF) + xlsx (documentation)
+        url: null            # no direct URL obtainable: the DARES site is behind a captcha
+        source_page: "https://dares.travail-emploi.gouv.fr/donnees/la-nomenclature-des-familles-professionnelles-2021"
+        download_method: "manual (browser, captcha); copied into data/raw/dares/fap2021/<YYYYMMDD>/"
+        downloaded_on: "2026-11-09"
+        snapshot: "20261109"
+        files:
+          csv:
+            name: "Dares_Table_passage_ROME_Qualif_to_FAP2021_pour_programme.csv"
+            sha256: "aa4fc948a59309879a297ed40165fcf1f67e1cbd92a6ca7d8dbfce8429f62d13"
+          xlsx:
+            name: "Dares_Table_passage_ROME_Qualif_to_FAP2021_pour_visualisation.xlsx"
+            sha256: "e06876eb1798a616f9308b54c5dbea7d1cfc502eb54751111dca76a46ec3cdec"
+        license: "UNCONFIRMED — no licence statement in the files or on the open-data mirrors; do not assume Licence Ouverte"
         auth: none
-        notes: "FAP <-> PCS <-> ROME table referenced from the ROME dataset page. Must be downloaded manually in a browser into data/raw/dares/."
-        status: manual_download
-        pending_task: "Required before any BMO <-> ROME join. Deferred by decision of 2026-11-09."
+        notes: "ROME V3 x qualification class (0-9) -> FAP341. 5,320 rows; 532 ROME V3 codes x 10 classes; 337 FAP341. Qualification-dependent: never collapse to ROME -> FAP."
+        status: verified_manual
+        connector: career_intelligence.ingestion.dares   # Phase 10 -> bronze.dares_rome_qualif_fap2021
