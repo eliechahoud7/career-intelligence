@@ -73,6 +73,7 @@ sources:
         auth: none
         notes: "1,138 occupations (MET.xxx) with descriptions (HTML fragments), ROME codes (<romesV3>), centres d'intérêt."
         status: verified
+        connector: career_intelligence.ingestion.onisep   # Phase 08 -> bronze.onisep_*
       - id: onisep_fiches_formations
         type: bulk_download
         format: zip/xml
@@ -80,6 +81,7 @@ sources:
         auth: none
         notes: "2,349 trainings (FOR.xxx) linked to >=1 MET; NSF, level, RNCP URL."
         status: verified
+        connector: career_intelligence.ingestion.onisep   # Phase 08 -> bronze.onisep_*
       - id: onisep_metiers_csv
         type: bulk_download
         format: csv
@@ -94,6 +96,7 @@ sources:
         auth: none
         notes: "5,799 initial trainings, NSF / RNCP / code scolarité. ';'-separated."
         status: verified
+        connector: career_intelligence.ingestion.onisep   # Phase 08 -> bronze.onisep_*
       - id: onisep_table_passage_certifications
         type: bulk_download
         format: csv

@@ -165,6 +165,31 @@ CSV files are UTF-8 with BOM and `;`-separated (the nomenclature file uses mixed
 `type_Formation`, `duree_formation`, `url` (often a France Compétences **RNCP** URL), `nsf_discipline`,
 `nsf_fonction`, `niveau_certification`, `niveau_etudes`, `sous_tutelle`, **`metiers_formation/metier/id`** (MET.xxx).
 
+**Phase 08 — Bronze load (snapshot 20261109):**
+
+| Dataset | Raw file (sha256) | Records | Bronze table |
+|---|---|---|---|
+| Idéo-Fiches métiers | `fiches_metiers.zip` (`eb04222a…9bc8`) | 1,138 `<metier>` | `bronze.onisep_fiches_metiers` (21 cols) |
+| Idéo-Fiches formations | `fiches_formations.zip` (`4fc73fba…b2a3`) | 2,349 `<formation>` | `bronze.onisep_fiches_formations` (31 cols) |
+| Idéo-Formations initiales en France | `formations_initiales.csv` (`355d7dd5…2e8`) | 5,799 rows | `bronze.onisep_formations_initiales` (16 cols) |
+
+- **Structure:** every record has the same top-level elements in the same order, none
+  repeated; no namespaces; `id` attributes only inside nested blocks. Text-only elements →
+  STRING columns named like the tag (HTML descriptions are CDATA in the source → kept as text);
+  elements with children (`romesV3`, `formations_min_requise`, `metiers_formation`,
+  `nsf_discipline`…) → their **original XML fragment** (parse in Silver with `xpath`).
+  Round-trip check: all 3,487 records rebuilt from the staged data are canonically identical
+  to the source XML. CSV headers → snake_case (mapping in the manifest).
+- **Relationships (identifiers only, nothing inferred):** all 2,349 Fiches formations ids are
+  in Formations initiales (the full catalogue, 5,799 `FOR.n`); Fiches formations reference
+  984 distinct métiers, all present in Fiches métiers; 931 Fiches métiers carry ≥ 1 ROME code.
+- Raw files are kept per snapshot (`data/raw/onisep/<YYYYMMDD>/`); ONISEP has no version
+  number. Load: `sql/bronze/03_onisep.sql`; checks: `sql/bronze/03_onisep_checks.sql`.
+- **Licence obligations carried into the platform:** every ONISEP-derived table records
+  `source.license = ODbL` and `source.attribution = Source : Onisep`; the application must
+  display "Source : Onisep", and any publicly used database derived from these tables
+  (Silver/Gold, exports) must be published under ODbL.
+
 **Measured linkage:**
 - 928 / 1,138 ONISEP occupations carry ≥ 1 ROME code valid in v62. The codes used have the same format as ROME 4.0 even though the tag is named `romesV3`.
 - Those occupations reference 407 distinct valid ROME codes, i.e. **21 % of the 1,923 ROME codes**.
