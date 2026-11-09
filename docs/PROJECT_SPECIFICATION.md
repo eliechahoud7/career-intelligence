@@ -126,7 +126,7 @@ occupation_source_mapping  (links source-specific codes to the unified occupatio
 | 3 | Bronze connectors (one source at a time) | **In progress** — BMO 2026 → `bronze.bmo_2026`; ROME 4.0 v62 → 29 `bronze.rome_*` tables; ONISEP → 3 `bronze.onisep_*` tables; DARES ROME × qualification → FAP 2021 → `bronze.dares_rome_qualif_fap2021`; ROME ↔ Formacode V14 + thesaurus → 3 `bronze.*formacode*` tables; DARES FAP 2021 nomenclature + qualification readme → 2 `bronze.dares_*` tables |
 | 4 | Silver transformations + data-quality checks | **In progress** — `silver.bmo_2026`, 24 `silver.rome_*` tables, 8 `silver.onisep_*` tables, 4 Formacode tables, 3 DARES tables (`fap2021`, `dares_qualification`, `dares_rome_v3_fap341`) |
 | 5 | Gold integrated model + SQL views | **In progress** — `gold` schema: 3 tables (`metier`, `bmo_recrutement`, `source_licence`) + 6 views (appellations, skills, Formacode domains, ONISEP training [ODbL], FAP228, ROME V3 × qualification → FAP); see DATA_SOURCES.md §6 |
-| 6 | Search layer + Streamlit application | Planned |
+| 6 | Search layer + Streamlit application | **In progress** — SQL search layer: `search` schema (4 views over Gold) + 17 parameterized query contracts (`sql/search/queries`, registry `career_intelligence.search.contracts`); see DATA_SOURCES.md §7. Streamlit application: planned (Phase 15) |
 | 7 | Documentation, evaluation, final report | Planned |
 
 ## 7. Risks

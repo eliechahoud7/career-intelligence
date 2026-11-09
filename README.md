@@ -50,7 +50,7 @@ career-intelligence/
 │   ├── transformation/       # PySpark transformations (Silver/Gold)
 │   ├── search/               # query layer for the app
 │   └── utils/                # logging and helpers
-├── tests/                    # pytest suite
+├── tests/                    # pytest suite (tests/live: opt-in Databricks tests)
 ├── .env.example              # environment-variable template
 ├── pyproject.toml
 ├── requirements.txt
@@ -78,6 +78,18 @@ python -m ruff check .
 
 > If script execution is blocked, run once:
 > `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+
+Live tests of the search contracts (`tests/live`) are skipped unless configured. To run them,
+install the optional Databricks client and set the connection in the session only:
+
+```powershell
+python -m pip install -e ".[databricks]"
+$env:CAREER_INTELLIGENCE_LIVE = "1"
+$env:DATABRICKS_SERVER_HOSTNAME = "<your-workspace>.cloud.databricks.com"
+$env:DATABRICKS_HTTP_PATH = "/sql/1.0/warehouses/<warehouse-id>"
+$env:DATABRICKS_CONFIG_PROFILE = "career-intelligence"   # token from `databricks auth token`
+python -m pytest tests/live
+```
 
 ## Ingestion
 
@@ -107,7 +119,7 @@ databricks auth login --host https://<your-workspace>.cloud.databricks.com --pro
 | Object | Name |
 |---|---|
 | Catalog | `career_intelligence` |
-| Schemas | `career_intelligence.bronze`, `career_intelligence.silver`, `career_intelligence.gold` |
+| Schemas | `career_intelligence.bronze`, `career_intelligence.silver`, `career_intelligence.gold`, `career_intelligence.search` |
 | Volume | `career_intelligence.bronze.landing` → `/Volumes/career_intelligence/bronze/landing/` |
 | Tables | `bronze.bmo_2026` (raw text) → `silver.bmo_2026` (typed, cleaned)<br>`bronze.rome_<entity>` — 29 raw ROME 4.0 tables, one per source CSV<br>`silver.rome_*` — 24 clean ROME tables: 13 reference entities + 11 occupation links<br>`bronze.onisep_fiches_metiers`, `bronze.onisep_fiches_formations`, `bronze.onisep_formations_initiales` — raw ONISEP (ODbL)<br>`silver.onisep_*` — 8 ONISEP tables: occupations, training sheets, training catalogue + 5 relationships (incl. occupation → ROME)<br>`bronze.dares_rome_qualif_fap2021` — DARES ROME V3 × qualification → FAP341 (raw; qualification-dependent)<br>`bronze.dares_fap2021_nomenclature`, `bronze.dares_rome_qualif_fap2021_lisez_moi` → `silver.fap2021`, `silver.dares_qualification`, `silver.dares_rome_v3_fap341` — FAP 2021 hierarchy, qualification classes 0–9, ROME **V3** × qualification → FAP341 (not joined to ROME v62)<br>`bronze.rome_formacode_v14`, `bronze.formacode_v14_descripteurs`, `bronze.formacode_v14_grands_domaines` — ROME v62 ↔ Formacode V14 + official thesaurus<br>`silver.formacode`, `silver.formacode_grand_domaine`, `silver.formacode_terme_associe`, `silver.rome_metier_formacode` — Formacode thesaurus (official labels, hierarchy) + occupation → training-domain links<br>`gold.metier`, `gold.bmo_recrutement`, `gold.source_licence` + views `gold.v_metier_appellation`, `v_metier_competence`, `v_metier_domaine_formation`, `v_metier_formation_onisep` (ODbL), `v_fap`, `v_rome_v3_fap` — integrated model; BMO figures are minimums by FAP228 × geography, never linked to ROME v62 (see `docs/DATA_SOURCES.md` §6) |
 
@@ -130,9 +142,40 @@ Load steps (run SQL on the SQL warehouse, e.g. from the SQL editor):
 14. DARES FAP hierarchy + qualification readme: run both connectors, upload (commands in the header of `sql/bronze/06_dares_fap2021.sql`), then `sql/bronze/06_dares_fap2021.sql` and `sql/bronze/06_dares_fap2021_checks.sql`
 15. `sql/silver/05_dares.sql` (3 tables: `fap2021`, `dares_qualification`, `dares_rome_v3_fap341`) and `sql/silver/05_dares_checks.sql`
 16. `sql/gold/01_gold.sql` (schema `gold`: 3 tables + 6 views, built from Silver only) and `sql/gold/01_gold_checks.sql` — every `check_*` must be `true`
+17. `sql/search/01_search.sql` (schema `search`: 4 views over Gold) and `sql/search/01_search_checks.sql` — every `check_*` must be `true`
 
 PySpark is provided by the Databricks runtime. For local Spark execution (requires Java 17)
 install the optional extra: `python -m pip install -e ".[spark]"`.
+
+## Search layer
+
+The application queries the warehouse only through 17 parameterized SQL contracts
+(`sql/search/queries/q01…q17_*.sql`, named parameters `:name`). The registry
+`career_intelligence.search.contracts` documents each one (parameters, output columns, key,
+sources, licence) and `bind()` validates the inputs:
+
+```python
+from career_intelligence.search.contracts import bind
+
+query = bind("rechercher_metiers", q="électricien", page=1, page_size=20)
+cursor.execute(query.sql, parameters=query.parameters)  # databricks-sql-connector
+# or: {"statement": query.sql, "parameters": query.statement_parameters()}  (Statement Execution API)
+```
+
+| Search need | Contracts |
+|---|---|
+| Occupations by name, ROME code or keyword | `rechercher_metiers`, `fiche_metier`, `appellations_metier` |
+| Descriptions and professional domains | `fiche_metier`, `lister_domaines` |
+| Skills, knowledge, work contexts | `rechercher_competences`, `competences_metier`, `metiers_par_competence` |
+| Formacode training domains | `domaines_formation_metier`, `rechercher_domaines_formation`, `metiers_par_domaine_formation` |
+| ONISEP programmes (ODbL — display "Source : Onisep") | `rechercher_formations_onisep`, `formations_onisep_metier` |
+| BMO recruitment by FAP and area (minimums) | `rechercher_fap`, `recrutement_bmo`, `lister_zones_geo` |
+| DARES ROME **V3** × qualification → FAP | `rechercher_rome_v3` |
+| Licences and attributions | `licences` |
+
+Matching is case- and accent-insensitive, every word is required, and results are ranked only by
+match tier (`rang_pertinence`). BMO figures are never linked to ROME occupations. Details:
+`docs/DATA_SOURCES.md` §7.
 
 ## Configuration & secrets
 

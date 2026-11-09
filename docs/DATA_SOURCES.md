@@ -461,7 +461,49 @@ Approved rules (D2–D10):
 - **D9** — offline SQL guard tests; **D10** — dedicated `gold` schema.
 - No NSF, no weights/scores/"principal" links, no apportioning of BMO figures to ROME codes.
 
-## 7. Open items
+## 7. Search layer (Phase 14) — `career_intelligence.search`
+
+Views over Gold (nothing materialized) built by `sql/search/01_search.sql`, validated by
+`sql/search/01_search_checks.sql` (34 `check_*`), plus 17 parameterized query contracts in
+`sql/search/queries/` described by the registry `src/career_intelligence/search/contracts.py`.
+
+| View | Grain / key | Rows (2026-11-09) | Reads | Licence |
+|---|---|---|---|---|
+| `v_metier_index` | `code_rome, champ, code_ogr_appellation` | 24,532 (code, name, 14,330 long + 2,510 distinct short job titles, definition, access text) | `gold.metier`, `gold.v_metier_appellation` | Licence Ouverte |
+| `v_element_competence` | `type_element, code_ogr_element` | 32,432 | `gold.v_metier_competence` | Licence Ouverte |
+| `v_domaine_formation` | `code_formacode` | 1,220 | `gold.v_metier_domaine_formation` | Licence Ouverte + LO 2.0 |
+| `v_zone_geo` | `niveau_geo, code_geo` | 120 (1 national + 18 regions + 101 départements) | `gold.bmo_recrutement` | Licence Ouverte |
+
+**Source defect corrected for display and search only (decision P5).** France Travail's
+`unix_texte_v462_utf8.csv` (ROME v62) writes every apostrophe as two apostrophes (`L''infirmier`):
+all 6,635 sentences containing an apostrophe are affected. Bronze, Silver and Gold keep the
+source text; only `search.v_metier_index` (champs `definition`, `acces_metier`) replaces `''` by
+`'` — 10,205 pairs (7,195 in definitions, 3,010 in access texts), each counted in
+`nb_apostrophes_corrigees` and checked against Silver.
+
+**Matching (P3).** Case- and accent-insensitive substring matching (`COLLATE UNICODE_CI_AI`,
+`contains`/`startswith`; `LIKE` is not supported on collated strings), every word of the query
+required, ligatures handled (`coeur` = `cœur`), curly and straight apostrophes treated alike on
+both sides, exact match for codes. No stemming, fuzzy matching or synonyms ("infirmiers" does not
+match "Infirmier"). Queries are 2–100 characters. Note: Spark's `chr(n)` returns `chr(n % 256)`,
+so `chr(8217)` is *not* `’` — the SQL uses the literal `'’'` (guarded by a test).
+
+**Ranking (P4).** Match tiers only (`rang_pertinence`, 1 = best): exact code, label equals the
+query, label starts with it, every word in the label, then (occupations) every word in a job
+title, then — only with `inclure_textes` — in the definition / access text. Ties are broken
+alphabetically and by key. Counts (`nb_metiers`) are displayed, never used for ranking.
+
+**Contracts.** Every search returns `licence` and `attribution` from `gold.source_licence`,
+lineage columns, and (paginated, `LIMIT :page_size OFFSET :offset`, page size 1–100, default 20)
+`total_resultats`. ONISEP contracts (q11, q12) read the Gold ODbL view directly and return
+"Source : Onisep". DARES contracts (q13, q16) return `licence_confirmee = false`. `recrutement_bmo`
+(q14) returns minimums, hidden-cell counts, `est_complet_*` and `nature_valeur = 'minimum'`; it
+has no ROME column, and its optional `minimum_desc` sort puts NULLs last (default: geography).
+`rechercher_rome_v3` (q16) uses `code_rome_v3` only (all 532 V3 code strings also exist in
+v62 — they must not be linked), exposes `code_fap228` / `bmo_disponible` but no BMO figure.
+`code_rome_parent` is not exposed.
+
+## 8. Open items
 
 - [x] ~~Download the DARES FAP ↔ ROME table manually; check its ROME version~~ — done (Phase 10): ROME **V3** × qualification → FAP341, loaded to Bronze.
 - [ ] **DARES licence:** confirm the reuse conditions of the correspondence table (site legal notice) and of the FAP 2021 nomenclature export (none declared on the open-data portal) — currently UNCONFIRMED.

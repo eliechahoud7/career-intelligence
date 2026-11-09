@@ -23,6 +23,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0,<9", "ruff>=0.6"]
+# Databricks SQL client: live search-contract tests (tests/live) and the future app.
+databricks = ["databricks-sql-connector>=4,<5"]
 # Local Spark execution (Databricks provides Spark/Delta at runtime).
 # Not installed by default; pin to the Databricks runtime version once chosen.
 spark = ["pyspark", "delta-spark"]
