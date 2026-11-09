@@ -136,6 +136,22 @@ Organisation on data.gouv.fr: [France Travail](https://www.data.gouv.fr/organiza
 - ⚠️ The schema drifts between editions: the data uses `BE26` but the description sheet says `BE25`. Older years are zipped, and their filenames are inconsistent.
 - ⚠️ Occupation codes are **FAP2021, not ROME** → a crosswalk is required (§4).
 
+**Phase 03 profiling (full file, 2026-11-09, sha256 `735d0443…92e0`):**
+
+| Aspect | Finding | Handling |
+|---|---|---|
+| Row grain | unique on **(occupation, department, bassin, CLPE)**. Not on (occupation, bassin): a bassin may span several departments (19 do) and CLPEs (184 do) | key used in validation; rows are disjoint pieces → additive to department / region |
+| Types | pandas infers `REG`, `BE26`, `annee` as int → loses leading zeros (`01`→`1`); `Dept` mixes `01`…`976`, `2A`, `2B` | read **everything as text** |
+| Missing values | only `clpe`: 100 nulls, all bassin `9399` MONACO | allowed (warning) |
+| Secrecy `*` | `met` 24.2 % · `xmet` 48.6 % · `smet` 74.2 % of rows | kept verbatim in Bronze; typed to null + flag in Silver |
+| Codes | 217 occupation codes, all match `[A-Z][A-Z0-9][A-Z]\d{2}` (e.g. `A0X40`, `QAX01`); 8 families; 18 regions; 101 departments; 406 bassins; 361 CLPE | format checks |
+| Consistency | `xmet ≤ met` and `smet ≤ met` on all non-secret rows; no zero values | check (warning if violated) |
+| Text quality | 257 `Nom métier BMO` values with trailing spaces | trimmed in Silver |
+| Totals | 2,237,486 recruitment projects in non-secret cells | — |
+
+Connector: `career_intelligence.ingestion.bmo` → raw `data/raw/france_travail/bmo/2026/bmo_2026.xlsx`,
+Bronze-ready `data/staging/france_travail/bmo/bmo_2026.parquet` + `.manifest.json` (git-ignored).
+
 ### 3b. API Marché du travail — 🔒 requires registration
 - Catalogue: [672cf65f739fcf87e0f02be2](https://www.data.gouv.fr/fr/dataservices/672cf65f739fcf87e0f02be2) — `access_type: open`, **10 calls/s**, sign-up at `https://francetravail.io/inscription`.
 - Described content: job seekers registered and new, offers, hirings, recruitment difficulty, offered salary, territorial dynamics indicator — **by métier, sector, skill and territory**.
@@ -172,7 +188,7 @@ Demandeurs d'emploi inscrits (quarterly CVS-CJO series), Offres d'emploi diffus�
 
 ## 6. Open items
 
-- [ ] Download the DARES FAP ↔ PCS ↔ ROME table manually; check its ROME version and licence.
-- [ ] Decide whether to register on francetravail.io (needed only for the Marché du travail API).
+- [ ] **PENDING (deferred 2026-11-09):** download the DARES FAP ↔ PCS ↔ ROME table manually; check its ROME version and licence. *Blocks any BMO ↔ ROME join; no join is attempted until then.*
+- [x] ~~Decide whether to register on francetravail.io~~ — **decided 2026-11-09: not now.** BMO 2026 is the first employment dataset.
 - [ ] Test outbound access from Databricks Free Edition serverless to `api.francetravail.fr`, `data.onisep.fr`, `www.francetravail.org` and `www.data.gouv.fr`.
 - [ ] Read the francetravail.io terms of use if an API is adopted.

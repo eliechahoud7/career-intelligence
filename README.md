@@ -79,6 +79,18 @@ python -m ruff check .
 > If script execution is blocked, run once:
 > `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
 
+## Ingestion
+
+| Dataset | Command | Output (git-ignored) |
+|---|---|---|
+| France Travail BMO | `python -m career_intelligence.ingestion.bmo [--year 2026] [--force]` | `data/raw/france_travail/bmo/<year>/bmo_<year>.xlsx` (raw, immutable)<br>`data/staging/france_travail/bmo/bmo_<year>.parquet` + `.manifest.json` |
+
+Each run downloads the file only if it is missing (`--force` to refresh), reads every value as text,
+standardises column names, validates (structure, formats, keys, consistency), and writes a
+Bronze-ready Parquet file with lineage columns (`_source_*`, `_run_id`, `_ingested_at`) plus a JSON
+manifest (checksum, validation report, column profile). Download URLs come only from verified
+entries in `config/sources.yaml`.
+
 PySpark is provided by the Databricks runtime. For local Spark execution (requires Java 17)
 install the optional extra: `python -m pip install -e ".[spark]"`.
 

@@ -1,8 +1,10 @@
-# Runtime dependencies — initial, minimal set.
+# Runtime dependencies — kept minimal.
 # Connector- and platform-specific packages (e.g. PySpark, Databricks clients)
 # are added only once the corresponding component is implemented.
 requests>=2.32,<3
 python-dotenv>=1.0,<2
 PyYAML>=6.0,<7
 pandas>=2.2,<3
+openpyxl>=3.1,<4      # Excel reader for pandas (BMO .xlsx)
+pyarrow>=15           # Parquet output for Databricks ingestion
 streamlit>=1.40,<2

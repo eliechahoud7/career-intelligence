@@ -119,8 +119,10 @@ sources:
       - id: ft_bmo
         type: bulk_download
         format: xlsx
+        year: 2026
         url: "https://www.francetravail.org/files/live/sites/peorg/files/documents/Statistiques-et-analyses/Open-data/BMO/Base-open-data-BMO-2026.xlsx"
         auth: none
+        connector: career_intelligence.ingestion.bmo   # Phase 03
         license: "Licence Ouverte (fr-lo)"
         notes: "Enquête Besoins en Main-d'Oeuvre 2026: 53,786 rows = 217 FAP2021 codes x bassin d'emploi. Recruitment projects / difficult / seasonal. '*' = statistical secrecy. Annual; filename and column names change each year."
         status: verified
@@ -158,5 +160,6 @@ sources:
         type: bulk_download
         url: null            # DARES website is behind a captcha (bot protection)
         auth: none
-        notes: "FAP <-> PCS <-> ROME table referenced from the ROME dataset page. Must be downloaded manually in a browser into data/raw/."
+        notes: "FAP <-> PCS <-> ROME table referenced from the ROME dataset page. Must be downloaded manually in a browser into data/raw/dares/."
         status: manual_download
+        pending_task: "Required before any BMO <-> ROME join. Deferred by decision of 2026-11-09."

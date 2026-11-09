@@ -71,6 +71,33 @@ def load_sources() -> list[dict[str, Any]]:
     return sources
 
 
+def get_resource(resource_id: str) -> dict[str, Any]:
+    """Return one resource from the registry, enriched with its parent source's metadata.
+
+    Raises ConfigError if the resource is unknown or not marked as ``verified``,
+    so that connectors can only use endpoints that passed verification.
+    """
+    for source in load_sources():
+        for resource in source.get("resources", []):
+            if resource.get("id") == resource_id:
+                status = resource.get("status")
+                if status != "verified" or not resource.get("url"):
+                    raise ConfigError(f"Resource '{resource_id}' is not verified (status={status})")
+                return {
+                    **resource,
+                    "source_id": source["id"],
+                    "publisher": source.get("publisher"),
+                    "license": resource.get("license") or source.get("license"),
+                }
+    raise ConfigError(f"Unknown resource id in sources.yaml: {resource_id}")
+
+
+def project_path(relative: str | Path) -> Path:
+    """Resolve a path from settings (relative to the project root) to an absolute path."""
+    path = Path(relative)
+    return path if path.is_absolute() else PROJECT_ROOT / path
+
+
 def get_secret(name: str, required: bool = True) -> str | None:
     """Read a secret from the environment. Never logs or returns defaults for secrets."""
     value = os.getenv(name)
