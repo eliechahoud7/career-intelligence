@@ -107,9 +107,9 @@ databricks auth login --host https://<your-workspace>.cloud.databricks.com --pro
 | Object | Name |
 |---|---|
 | Catalog | `career_intelligence` |
-| Schemas | `career_intelligence.bronze`, `career_intelligence.silver` |
+| Schemas | `career_intelligence.bronze`, `career_intelligence.silver`, `career_intelligence.gold` |
 | Volume | `career_intelligence.bronze.landing` → `/Volumes/career_intelligence/bronze/landing/` |
-| Tables | `bronze.bmo_2026` (raw text) → `silver.bmo_2026` (typed, cleaned)<br>`bronze.rome_<entity>` — 29 raw ROME 4.0 tables, one per source CSV<br>`silver.rome_*` — 24 clean ROME tables: 13 reference entities + 11 occupation links<br>`bronze.onisep_fiches_metiers`, `bronze.onisep_fiches_formations`, `bronze.onisep_formations_initiales` — raw ONISEP (ODbL)<br>`silver.onisep_*` — 8 ONISEP tables: occupations, training sheets, training catalogue + 5 relationships (incl. occupation → ROME)<br>`bronze.dares_rome_qualif_fap2021` — DARES ROME V3 × qualification → FAP341 (raw; qualification-dependent)<br>`bronze.dares_fap2021_nomenclature`, `bronze.dares_rome_qualif_fap2021_lisez_moi` → `silver.fap2021`, `silver.dares_qualification`, `silver.dares_rome_v3_fap341` — FAP 2021 hierarchy, qualification classes 0–9, ROME **V3** × qualification → FAP341 (not joined to ROME v62)<br>`bronze.rome_formacode_v14`, `bronze.formacode_v14_descripteurs`, `bronze.formacode_v14_grands_domaines` — ROME v62 ↔ Formacode V14 + official thesaurus<br>`silver.formacode`, `silver.formacode_grand_domaine`, `silver.formacode_terme_associe`, `silver.rome_metier_formacode` — Formacode thesaurus (official labels, hierarchy) + occupation → training-domain links |
+| Tables | `bronze.bmo_2026` (raw text) → `silver.bmo_2026` (typed, cleaned)<br>`bronze.rome_<entity>` — 29 raw ROME 4.0 tables, one per source CSV<br>`silver.rome_*` — 24 clean ROME tables: 13 reference entities + 11 occupation links<br>`bronze.onisep_fiches_metiers`, `bronze.onisep_fiches_formations`, `bronze.onisep_formations_initiales` — raw ONISEP (ODbL)<br>`silver.onisep_*` — 8 ONISEP tables: occupations, training sheets, training catalogue + 5 relationships (incl. occupation → ROME)<br>`bronze.dares_rome_qualif_fap2021` — DARES ROME V3 × qualification → FAP341 (raw; qualification-dependent)<br>`bronze.dares_fap2021_nomenclature`, `bronze.dares_rome_qualif_fap2021_lisez_moi` → `silver.fap2021`, `silver.dares_qualification`, `silver.dares_rome_v3_fap341` — FAP 2021 hierarchy, qualification classes 0–9, ROME **V3** × qualification → FAP341 (not joined to ROME v62)<br>`bronze.rome_formacode_v14`, `bronze.formacode_v14_descripteurs`, `bronze.formacode_v14_grands_domaines` — ROME v62 ↔ Formacode V14 + official thesaurus<br>`silver.formacode`, `silver.formacode_grand_domaine`, `silver.formacode_terme_associe`, `silver.rome_metier_formacode` — Formacode thesaurus (official labels, hierarchy) + occupation → training-domain links<br>`gold.metier`, `gold.bmo_recrutement`, `gold.source_licence` + views `gold.v_metier_appellation`, `v_metier_competence`, `v_metier_domaine_formation`, `v_metier_formation_onisep` (ODbL), `v_fap`, `v_rome_v3_fap` — integrated model; BMO figures are minimums by FAP228 × geography, never linked to ROME v62 (see `docs/DATA_SOURCES.md` §6) |
 
 Load steps (run SQL on the SQL warehouse, e.g. from the SQL editor):
 
@@ -129,6 +129,7 @@ Load steps (run SQL on the SQL warehouse, e.g. from the SQL editor):
 13. `sql/silver/04_formacode.sql` (4 tables) and `sql/silver/04_formacode_checks.sql` — every `check_*` must be `true`
 14. DARES FAP hierarchy + qualification readme: run both connectors, upload (commands in the header of `sql/bronze/06_dares_fap2021.sql`), then `sql/bronze/06_dares_fap2021.sql` and `sql/bronze/06_dares_fap2021_checks.sql`
 15. `sql/silver/05_dares.sql` (3 tables: `fap2021`, `dares_qualification`, `dares_rome_v3_fap341`) and `sql/silver/05_dares_checks.sql`
+16. `sql/gold/01_gold.sql` (schema `gold`: 3 tables + 6 views, built from Silver only) and `sql/gold/01_gold_checks.sql` — every `check_*` must be `true`
 
 PySpark is provided by the Databricks runtime. For local Spark execution (requires Java 17)
 install the optional extra: `python -m pip install -e ".[spark]"`.
@@ -171,6 +172,6 @@ remains subject to its own licence and terms of use.
 | DARES — FAP 2021 nomenclature and ROME × qualification → FAP correspondence | **Unconfirmed** (no statement in the files; not assumed to be Licence Ouverte) | Attribute "Source : Dares, nomenclature des familles professionnelles FAP-2021"; confirm reuse conditions before any public release |
 | **ONISEP — Idéo open data** | **Open Database License (ODbL)** | Display **"Source : Onisep"**; any publicly used database derived from ONISEP data must be shared under **ODbL** (share-alike) |
 
-All ONISEP-derived tables (Bronze and Silver) carry the table properties
+All ONISEP-derived tables (Bronze and Silver) and the Gold view `v_metier_formation_onisep` carry the table properties
 `source.license = ODbL` and `source.attribution = Source : Onisep`. The Streamlit application
 must display "Source : Onisep" wherever ONISEP-derived data is shown.

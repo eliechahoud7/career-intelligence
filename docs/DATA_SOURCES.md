@@ -418,15 +418,54 @@ Demandeurs d'emploi inscrits (quarterly CVS-CJO series), Offres d'emploi diffus�
 | ONISEP training | ROME (transitive) | FOR → MET → `code_rome` | 2,212/2,349 (94 %) |
 | ONISEP training | certifications | RNCP (URL), `code_scolarite`, Certif Info (table de passage) | 1,506 with RNCP |
 | ROME | training domain | Formacode V14 (`silver.rome_metier_formacode` → `silver.formacode`) | 5,958 links, many-to-many; 1,923/1,923 ROME v62, 1,220/1,220 Formacodes resolved (445 broad, 775 leaf) |
-| BMO (FAP2021, 228 level) | ROME (V3) | `bronze.dares_rome_qualif_fap2021` (ROME × qualification → FAP341, rolled up to FAP228 via the DARES hierarchy) | many-to-many, **qualification-dependent**; ROME V3 ≠ v62 scope — not joined yet |
+| BMO (FAP2021, 228 level) | ROME (V3) | `bronze.dares_rome_qualif_fap2021` (ROME × qualification → FAP341, rolled up to FAP228 via the DARES hierarchy) | many-to-many, **qualification-dependent**; ROME V3 ≠ v62 scope — exposed as-is in `gold.v_rome_v3_fap`, **never joined to ROME v62** (decision D2) |
 | Marché du travail API | ROME | expected `code_rome` | **unverified** (registration) |
 | Territory | all employment data | INSEE region / department codes, bassin d'emploi | native in BMO |
 
-## 6. Open items
+## 6. Gold layer (Phase 13b) — `career_intelligence.gold`
+
+Built by `sql/gold/01_gold.sql` from Silver only; validated by `sql/gold/01_gold_checks.sql`
+(54 `check_*`, all recomputed from Silver) and by the offline guards in
+`tests/test_gold_sql_guards.py`.
+
+| Object | Type | Grain / key | Rows (2026-11-09) | Sources | Licence |
+|---|---|---|---|---|---|
+| `metier` | table | `code_rome` | 1,923 | ROME v62 | Licence Ouverte |
+| `v_metier_appellation` | view | `code_ogr_appellation` | 14,330 | ROME v62 | Licence Ouverte |
+| `v_metier_competence` | view | `code_rome, type_element, code_ogr_element` | 124,910 | ROME v62 (savoir-faire, savoir-être, savoirs, contextes) | Licence Ouverte |
+| `v_metier_domaine_formation` | view | `code_rome, code_formacode` | 5,958 | ROME ↔ Formacode V14 | Licence Ouverte + LO 2.0 |
+| `v_metier_formation_onisep` | view | `code_rome_source, identifiant_metier_onisep, type_lien, identifiant_formation` | 13,033 | ONISEP + ROME v62 | **ODbL** |
+| `v_fap` | view | `code_fap228` | 228 | FAP 2021 (+ BMO availability flag) | **UNCONFIRMED** |
+| `bmo_recrutement` | table | `code_fap228, niveau_geo, code_geo` | 21,536 (17,710 dép. + 3,609 rég. + 217 national) | BMO 2026 | Licence Ouverte |
+| `v_rome_v3_fap` | view | `code_rome_v3, code_qualification` | 5,320 | DARES correspondence + FAP 2021 + qualification classes | **UNCONFIRMED** |
+| `source_licence` | table | `objet_gold` | 9 | project metadata | — |
+
+Approved rules (D2–D10):
+
+- **D2** — ROME v62 and BMO are strictly separate. No Gold object holds both a v62 `code_rome`
+  and a FAP/BMO column; `v_rome_v3_fap` (ROME **V3** × qualification) is the only ROME → FAP
+  route and has no `code_rome` column. `code_rome_parent` is an attribute of `metier` only.
+- **D3** — BMO aggregates are **minimums** (sum of published, non-secret cells): measures are
+  named `*_minimum`, with hidden-cell counts and `est_complet_*` flags; `NULL` (not 0) when every
+  cell of a group is hidden. National rows use the project-defined `code_geo = 'FR'`. All 217
+  national totals include hidden cells (none is complete).
+- **D4** — `metier`, `bmo_recrutement`, `source_licence` are tables; relationships are views.
+- **D5** — ONISEP (ODbL) data appear only in `v_metier_formation_onisep` (property
+  `source.license = ODbL`, attribution "Source : Onisep").
+- **D6** — 8 unresolved ONISEP ROME links (6 codes) are kept: 54 rows with `code_rome = NULL`,
+  `statut_code_rome = 'non_resolu'`, identified by `code_rome_source`. 57 minimum-training rows
+  outside the ONISEP catalogue are kept with `formation_dans_catalogue = false`.
+- **D7** — ONISEP grain preserved (ROME link row × training link row; `UNION ALL`, no `DISTINCT`).
+- **D8** — `definition` = sentences joined by a space, `acces_metier` = sentences joined by a
+  line break, both ordered by `position_phrase`; recomputed and compared in the checks.
+- **D9** — offline SQL guard tests; **D10** — dedicated `gold` schema.
+- No NSF, no weights/scores/"principal" links, no apportioning of BMO figures to ROME codes.
+
+## 7. Open items
 
 - [x] ~~Download the DARES FAP ↔ ROME table manually; check its ROME version~~ — done (Phase 10): ROME **V3** × qualification → FAP341, loaded to Bronze.
 - [ ] **DARES licence:** confirm the reuse conditions of the correspondence table (site legal notice) and of the FAP 2021 nomenclature export (none declared on the open-data portal) — currently UNCONFIRMED.
-- [ ] **Decision pending:** whether `code_rome_parent` may bridge ROME V3 families to v62 codes in Silver/Gold; and how BMO figures are presented given qualification-conditional links (no apportioning).
+- [x] ~~**Decision pending:** whether `code_rome_parent` may bridge ROME V3 families to v62 codes in Silver/Gold; and how BMO figures are presented given qualification-conditional links~~ — **decided (Phase 13b, D2/D3):** no bridge; BMO is presented by FAP228 and geography as minimums, never linked to ROME v62 nor apportioned.
 - [x] ~~Decide whether to register on francetravail.io~~ — **decided 2026-11-09: not now.** BMO 2026 is the first employment dataset.
 - [ ] Test outbound access (still open: BMO was loaded by uploading the local staging file, so this is not yet needed) from Databricks Free Edition serverless to `api.francetravail.fr`, `data.onisep.fr`, `www.francetravail.org` and `www.data.gouv.fr`.
 - [ ] Read the francetravail.io terms of use if an API is adopted.
