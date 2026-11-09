@@ -190,6 +190,34 @@ CSV files are UTF-8 with BOM and `;`-separated (the nomenclature file uses mixed
   display "Source : Onisep", and any publicly used database derived from these tables
   (Silver/Gold, exports) must be published under ODbL.
 
+**Phase 09 — Silver (8 tables, `career_intelligence.silver.onisep_*`, all ODbL):**
+
+| Table | Rows | Key | Content |
+|---|---|---|---|
+| `onisep_metier` | 1,138 | `identifiant` (MET.n) | occupation; small lists (synonymes, statuts, secteurs, centres d'intérêt, publications, sources) as `ARRAY<STRUCT>` |
+| `onisep_formation` | 2,349 | `identifiant` (FOR.n) | training sheet; = `onisep_formation_initiale.identifiant` (1:1, validated FK) |
+| `onisep_formation_initiale` | 5,799 | `identifiant` (FOR.n from the URL) | full initial-training catalogue; `codes_nsf`, `domaines_sous_domaines` as arrays |
+| `onisep_metier_rome` | 976 | (`identifiant_metier`, `code_rome_source`) | occupation → ROME, `statut_code` valide / non_resolu |
+| `onisep_formation_metier` | 6,756 | (`identifiant_formation`, `identifiant_metier`) | training sheet → occupation (984 occupations, 0 orphans) |
+| `onisep_metier_formation_min_requise` | 7,184 | (`identifiant_metier`, `identifiant_formation`) | occupation → minimum required training; 58 FOR ids outside the catalogue (flagged) |
+| `onisep_metier_associe` | 825 | (`identifiant_metier`, `identifiant_metier_associe`) | related occupations; 200 MET ids not in Fiches métiers (flagged) |
+| `onisep_formation_poursuite` | 2,664 | (`identifiant_formation`, `identifiant_formation_poursuite`) | further study; 1 FOR id outside the catalogue (flagged) |
+
+- **ROME linkage (recalculated from Bronze):** 976 occupation→code links on 931 occupations;
+  **968 links valid** in ROME v62; **8 links unresolved** — 6 truncated codes `A15`, `B16` (×3),
+  `H2`, `K15`, `K19`, `N2`, kept verbatim with `statut_code = 'non_resolu'`. Occupations:
+  931 with any code, **928 with ≥ 1 valid code**, 3 with only unresolved codes, 5 mixing
+  both, 207 without code. (Earlier summaries quoted 928 or 931: both are right — "valid"
+  vs "any" code.)
+- **Normalisation:** labels — whitespace runs (incl. U+00A0, tabs) → one space, trimmed,
+  `''` → NULL; HTML descriptions — edges trimmed only (internal NBSP are French typography);
+  `duree_formation` loses its literal quotes (`"3 ans"` → `3 ans`); dates → `DATE`.
+- **Open:** `metier_transverse` is either `oui` or empty in the source; kept as text (`oui` /
+  NULL) — whether empty means "non" is not documented. `niveau_certification` (fiche) and
+  `niveau_de_certification` (catalogue) use different code systems (`niveau 7` vs `1`), kept
+  as published.
+- Build: `sql/silver/03_onisep.sql`; checks: `sql/silver/03_onisep_checks.sql`.
+
 **Measured linkage:**
 - 928 / 1,138 ONISEP occupations carry ≥ 1 ROME code valid in v62. The codes used have the same format as ROME 4.0 even though the tag is named `romesV3`.
 - Those occupations reference 407 distinct valid ROME codes, i.e. **21 % of the 1,923 ROME codes**.
