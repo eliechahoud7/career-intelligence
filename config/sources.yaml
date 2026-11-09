@@ -32,8 +32,9 @@ sources:
         format: zip/csv
         url: "https://api.francetravail.fr/api-nomenclatureemploi/v1/open-data/csv"
         auth: none
-        notes: "HTTP GET only (HEAD returns 404). 29 CSV files, UTF-8 except arborescence_secteur_naf (cp1252)."
+        notes: "HTTP GET only (HEAD returns 404). 29 CSV files + version.txt; UTF-8 except arborescence_secteur_naf (cp1252); centre_interet / secteur_activite have multi-line cells and blank lines; type_referentiel is empty."
         status: verified
+        connector: career_intelligence.ingestion.rome   # Phase 06 -> career_intelligence.bronze.rome_*
       - id: rome_bulk_json
         type: bulk_download
         format: zip/json

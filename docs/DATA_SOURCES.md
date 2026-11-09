@@ -73,6 +73,35 @@ No authentication. **GET only** — a `HEAD` request returns 404.
 `competences{savoir_faire, savoir_etre_professionnel, savoirs}`, `contextes_travail[]`,
 `secteurs_activite[]`, `mobilites[]`). ⚠️ **Encoded cp1252, not UTF-8.**
 
+**Phase 06 — full archive inspection (v62, sha256 `ae63cf91…7fcb`) and Bronze load:**
+
+- 29 CSVs + `version.txt`; comma-separated, quoted, LF. Phase 02 counts for `centre_interet`
+  (**30**, not 60) and `secteur_activite` (**35**, not 70) were wrong: they contain quoted
+  multi-line cells *and* blank lines between records. `type_referentiel` is empty.
+- All referentials have unique codes; all link tables are unique on their natural key;
+  `arborescence_competences` is unique on (macro-competence, competence) only — 15 competences
+  sit under 2 macro-competences, and 16 macro-competences (savoir-être) have **no** child
+  competence (`code_ogr_competence = ''`).
+- `item` (35,981) = `referentiel_competence` (20,088) ⊎ `referentiel_savoir` (15,699) ⊎
+  `referentiel_contexte_travail` (194), with no overlap.
+- **`liens_rome_referentiels.code_ogr` is polymorphic** — its target depends on the block:
+
+  | `code_compo_bloc` | `code_rubrique` | Target | Links | Occupations |
+  |---|---|---|---|---|
+  | 1 | – | `referentiel_code_rome.code_ogr` (the occupation) | 1,923 | 1,923 |
+  | 2 | – | `referentiel_appellation.code_ogr` | 14,330 | 1,923 |
+  | 5 | 1 | `referentiel_competence` — savoir-faire | 60,517 | 1,923 |
+  | 5 | 2 | `referentiel_competence` — savoir-être | 6,343 | 1,918 |
+  | 5 | 3 | `referentiel_savoir.code_ogr_savoir` | 40,715 | 1,923 |
+  | 6 | – | `referentiel_contexte_travail.code_ogr` | 17,335 | 1,923 |
+
+  0 unresolved links; 0 orphans on 11 other foreign keys.
+- **Bronze:** one table per CSV, `career_intelligence.bronze.rome_<entity>` (29 tables, 443,935
+  rows), text exactly as published (empty fields `''`, multi-line text kept, cp1252 decoded),
+  lineage `_source_*`, `_rome_version`, `_source_row`, `_run_id`, `_ingested_at`.
+  Load: `sql/bronze/02_rome.sql`; checks: `sql/bronze/02_rome_checks.sql`.
+  The JSON archive is not loaded (same content, denormalised).
+
 ### 1b. ROME ↔ Formacode V14 — ✅ verified
 `261014-ref-formacode-v14-rome-26m10-v62-pour-open-data.xlsx` — 5,958 rows:
 `Code ROME`, `Libellé fiche ROME`, `Code OGR ROME`, `Code FORMACODE V14`, `Libellé FORMACODE V14`.
