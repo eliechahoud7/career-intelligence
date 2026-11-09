@@ -50,6 +50,11 @@ sources:
         auth: none
         notes: "ROME v62 <-> Formacode V14 correspondence (5,958 rows). Filename changes each release."
         status: verified
+        local_file: "rome_formacode_v14.xlsx"
+        sha256: "1f1f144c25f6776b336fe78bc252ab2c23e715b222b191ef829f15264ca68d12"
+        version: "ROME 4.0 version 62 - 26M10 x Formacode V14 (réalisé 15/10/2026, mis à disposition 19/10/2026; prochaine actualisation 23/03/2027)"
+        snapshot: "rome_v62_formacode_v14"
+        connector: career_intelligence.ingestion.formacode   # Phase 11 -> bronze.rome_formacode_v14
       - id: rome_api
         type: rest_api
         url: null            # resource paths only visible after francetravail.io login
@@ -145,6 +150,50 @@ sources:
         auth: oauth2_client_credentials
         notes: "Withdrawn from francetravail.io pending review of reuse conditions; access only on request via contact form."
         status: restricted
+
+  # ---------------------------------------------------------------------------
+  - id: formacode
+    name: "Formacode® Version 14 — Thésaurus de l'offre de formation et de certification"
+    publisher: "Centre Inffo (published on data.gouv.fr from a user account named 'Centre Inffo', not a certified organisation)"
+    domains: [training]
+    documentation: "https://www.data.gouv.fr/datasets/formacode-r-version-14-thesaurus-de-loffre-de-formation-et-de-certification"
+    license: "Licence Ouverte 2.0 (data.gouv.fr id: lov2). Formacode® is a registered trademark of Centre Inffo."
+    version: "V14 — files dated 12/12/2024, reloaded on data.gouv.fr 20/12/2024"
+    resources:
+      - id: formacode_v14_descripteurs
+        type: bulk_download
+        format: xlsx
+        url: "https://static.data.gouv.fr/resources/formacode-r-version-14-thesaurus-de-loffre-de-formation-et-de-certification/20241220-124826/descripteur-formacode-des-champs-semantiques-20241212.xlsx"
+        auth: none
+        local_file: "formacode_v14_descripteurs.xlsx"
+        sha256: "02f248f08185b8bf87e2088fee26068e6ec558141adfef3c4f6dd04a0561207d"
+        sha1_data_gouv: "4d5a3dab804c4106a421b76b4207cf671626c70a"
+        notes: "2,775 descriptors, 14 columns (code, labels, semantic field, synonyms, TG/TS/TA, notes, tree code)."
+        status: verified
+        connector: career_intelligence.ingestion.formacode   # Phase 11 -> bronze.formacode_v14_descripteurs
+      - id: formacode_v14_grands_domaines
+        type: bulk_download
+        format: xls
+        url: "https://static.data.gouv.fr/resources/formacode-r-version-14-thesaurus-de-loffre-de-formation-et-de-certification/20241220-125109/grands-domaines-20241212.xls"
+        auth: none
+        local_file: "formacode_v14_grands_domaines.xls"
+        sha256: "f713514f3df9bd18476ee64de3c971f2e7c392d9e7b5c4b3255c95efbea43b47"
+        sha1_data_gouv: "d101ff875e73be4ef1040ae59df74cef015e8bfd"
+        notes: "14 top-level domains (codes as text, e.g. 00106)."
+        status: verified
+        connector: career_intelligence.ingestion.formacode   # Phase 11 -> bronze.formacode_v14_grands_domaines
+      - id: formacode_v14_alignement_nsf
+        type: bulk_download
+        format: xls
+        url: "https://static.data.gouv.fr/resources/formacode-r-version-14-thesaurus-de-loffre-de-formation-et-de-certification/20241220-124747/alignement-formacode-nsf-20241212.xls"
+        auth: none
+        local_file: "formacode_v14_alignement_nsf.xls"
+        sha256: "8e3dff7d74051200bbc99fe6fbf4e70e6ce37385732d6ec4e9b5f6e4e8a827e8"
+        sha1_data_gouv: "db7dac56811f814f13027bf9a34ef536d4a17ecb"
+        notes: "Formacode -> NSF alignment. ARCHIVED ONLY as reference (no table): NSF is too coarse to link ROME to ONISEP programmes."
+        archive_only: true
+        status: verified
+        connector: career_intelligence.ingestion.formacode   # archived in the landing volume only
 
   # ---------------------------------------------------------------------------
   - id: dares_fap

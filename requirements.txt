@@ -6,5 +6,6 @@ python-dotenv>=1.0,<2
 PyYAML>=6.0,<7
 pandas>=2.2,<3
 openpyxl>=3.1,<4      # Excel reader for pandas (BMO .xlsx)
+xlrd>=2.0,<3          # legacy .xls reader (Formacode thesaurus files)
 pyarrow>=15           # Parquet output for Databricks ingestion
 streamlit>=1.40,<2

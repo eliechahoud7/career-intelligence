@@ -123,7 +123,39 @@ No authentication. **GET only** — a `HEAD` request returns 404.
   parents, all existing). Its meaning is not documented in the open data — kept as published,
   not interpreted.
 
-### 1b. ROME ↔ Formacode V14 — ✅ verified
+### 1b. ROME ↔ Formacode V14 — ✅ verified, loaded to Bronze (Phase 11)
+
+**Phase 11 — Bronze load (snapshot `rome_v62_formacode_v14`, all files sha256-pinned):**
+
+| Bronze table | Source file | Publisher / licence | sha256 | Rows |
+|---|---|---|---|---|
+| `bronze.rome_formacode_v14` | `261014-ref-formacode-v14-rome-26m10-v62-pour-open-data.xlsx` | France Travail — Licence Ouverte (`fr-lo`) | `1f1f144c…8d12` | 5,958 |
+| `bronze.formacode_v14_descripteurs` | `descripteur-formacode-des-champs-semantiques-20241212.xlsx` | Centre Inffo — Licence Ouverte 2.0 (`lov2`) | `02f248f0…207d` | 2,775 |
+| `bronze.formacode_v14_grands_domaines` | `grands-domaines-20241212.xls` | Centre Inffo — Licence Ouverte 2.0 | `f713514f…3b47` | 14 |
+| *(archive only, no table)* | `alignement-formacode-nsf-20241212.xls` | Centre Inffo — Licence Ouverte 2.0 | `8e3dff7d…27e8` | — |
+
+- **Versions:** correspondence "ROME 4.0 version 62 - 26M10" × Formacode V14, realised
+  15/10/2026, published 19/10/2026, next update 23/03/2027 (built with Centre Inffo's
+  V13→V14 transcoding of 15/11/2024). Thesaurus V14 files dated 12/12/2024, reloaded on
+  data.gouv.fr 20/12/2024 (dataset `6745a0e3ae06305f8ef67aae`, published from a user account
+  named "Centre Inffo", not a certified organisation). Formacode® is a trademark of Centre Inffo.
+- **Compatibility (verified in SQL):** 1,923/1,923 ROME codes = `silver.rome_metier` (OGR and
+  labels identical, every v62 code covered); 1,220/1,220 Formacodes resolve to official V14
+  descriptors; no duplicate (ROME, Formacode) pair; many-to-many preserved (1,354 ROME codes
+  with several Formacodes, 844 Formacodes with several ROME codes; up to 95 / 79), no weights.
+- **Fidelity:** values as published (68,724 cells compared: 0 differences); Excel numeric
+  identifiers (Formacode descriptor codes, OGR) stored as their exact integer text; empty
+  cells NULL; domain codes keep leading zeros (`00106`); whitespace and literal `null` kept.
+  Headers → snake_case (original headers in the manifest). The descriptor file has 14
+  columns (incl. `NA`, empty `Note de version` / `ex-synonyme V-1`, `Code arborescence`).
+- **Labels:** the correspondence's Formacode labels are auto-Title-Cased and 73 codes have
+  accented/unaccented variants — kept as published in Bronze; **official labels are
+  `formacode_v14_descripteurs.descripteur_en_typo_riche`** (to be used from Silver on).
+- **No NSF/ONISEP bridge:** the NSF alignment is archived in the landing volume only.
+- Connector: `career_intelligence.ingestion.formacode`; load/checks:
+  `sql/bronze/05_formacode.sql`, `sql/bronze/05_formacode_checks.sql`.
+
+*Phase 02 notes:*
 `261014-ref-formacode-v14-rome-26m10-v62-pour-open-data.xlsx` — 5,958 rows:
 `Code ROME`, `Libellé fiche ROME`, `Code OGR ROME`, `Code FORMACODE V14`, `Libellé FORMACODE V14`.
 ⚠️ The filename is release-specific (`261014-…-26m10-v62`), so connectors must find the current link from the data.gouv.fr dataset API instead of hard-coding it.
@@ -333,7 +365,7 @@ Demandeurs d'emploi inscrits (quarterly CVS-CJO series), Offres d'emploi diffus�
 | ONISEP training | ONISEP occupation | `metiers_formation/metier/id` = `MET.xxx` | 2,349/2,349 |
 | ONISEP training | ROME (transitive) | FOR → MET → `code_rome` | 2,212/2,349 (94 %) |
 | ONISEP training | certifications | RNCP (URL), `code_scolarite`, Certif Info (table de passage) | 1,506 with RNCP |
-| ROME | training domain | Formacode V14 (`rome_formacode`) | 5,958 links |
+| ROME | training domain | Formacode V14 (`bronze.rome_formacode_v14` → `bronze.formacode_v14_descripteurs`) | 5,958 links, many-to-many; 1,923/1,923 ROME v62, 1,220/1,220 Formacodes resolved |
 | BMO (FAP2021, 228 level) | ROME (V3) | `bronze.dares_rome_qualif_fap2021` (ROME × qualification → FAP341, rolled up to FAP228 via the DARES hierarchy) | many-to-many, **qualification-dependent**; ROME V3 ≠ v62 scope — not joined yet |
 | Marché du travail API | ROME | expected `code_rome` | **unverified** (registration) |
 | Territory | all employment data | INSEE region / department codes, bassin d'emploi | native in BMO |
