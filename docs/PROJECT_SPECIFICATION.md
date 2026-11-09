@@ -121,7 +121,7 @@ occupation_source_mapping  (links source-specific codes to the unified occupatio
 | Phase | Deliverable | Status |
 |-------|-------------|--------|
 | 0 | Repository initialisation, specification | **Done** |
-| 1 | Data-source verification and selection | Next |
+| 1 | Data-source verification and selection (France, French) | **Done** — see DATA_SOURCES.md |
 | 2 | Databricks workspace setup (catalog, schemas, volume, secrets) | Planned |
 | 3 | Bronze connectors (one source at a time) | Planned |
 | 4 | Silver transformations + data-quality checks | Planned |

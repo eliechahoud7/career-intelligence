@@ -1,56 +1,162 @@
 # =============================================================================
-# Candidate data-source registry.
+# Data-source registry — Phase 02 verification results (2026-11-09).
 #
-# IMPORTANT: every entry is UNVERIFIED. No endpoint, schema, licence or access
-# condition is assumed. `base_url` stays null until the source has been
-# checked against its official documentation and a test request has succeeded.
-# The verification evidence is recorded in docs/DATA_SOURCES.md.
+# Scope: France, French language.
+# Evidence and schema notes for every entry: docs/DATA_SOURCES.md.
 #
-# status: candidate -> verified -> implemented | rejected
+# status values
+#   verified               resource downloaded/called successfully, schema inspected
+#   requires_registration  existence confirmed, but needs a francetravail.io account
+#                          before resource paths/schemas can be verified
+#   manual_download        file exists but cannot be fetched automatically
+#   restricted             not available to this project at present
+#
+# Rules: a `url` is recorded ONLY if it was successfully requested during
+# verification. Paths that could not be verified stay null. No credentials here.
 # =============================================================================
 
-sources:
-  - id: esco
-    name: "ESCO — European Skills, Competences, Qualifications and Occupations"
-    publisher: "European Commission"
-    domains: [occupations, skills]
-    access: "to_verify"           # expected public; confirm API vs. bulk download
-    auth_env_vars: []
-    base_url: null
-    status: candidate
+verified_on: "2026-11-09"
 
-  - id: rome_france_travail
-    name: "ROME — Répertoire Opérationnel des Métiers et des Emplois"
+sources:
+  # ---------------------------------------------------------------------------
+  - id: rome
+    name: "ROME 4.0 — Répertoire Opérationnel des Métiers et des Emplois"
     publisher: "France Travail"
     domains: [occupations, skills]
-    access: "to_verify"           # expected developer registration
-    auth_env_vars: []
-    base_url: null
-    status: candidate
+    documentation: "https://www.data.gouv.fr/datasets/58da857388ee384902e505f5/"
+    license: "Licence Ouverte / Open Licence (data.gouv.fr id: fr-lo)"
+    version: "ROME 4.0 v62 (26M10), published 2026-10-19; ~2 releases per year"
+    resources:
+      - id: rome_bulk_csv
+        type: bulk_download
+        format: zip/csv
+        url: "https://api.francetravail.fr/api-nomenclatureemploi/v1/open-data/csv"
+        auth: none
+        notes: "HTTP GET only (HEAD returns 404). 29 CSV files, UTF-8 except arborescence_secteur_naf (cp1252)."
+        status: verified
+      - id: rome_bulk_json
+        type: bulk_download
+        format: zip/json
+        url: "https://api.francetravail.fr/api-nomenclatureemploi/v1/open-data/json"
+        auth: none
+        notes: "Nested fiche_emploi_metier (1 doc per ROME). Encoded cp1252, NOT UTF-8."
+        status: verified
+      - id: rome_formacode
+        type: bulk_download
+        format: xlsx
+        url: "https://www.francetravail.org/files/live/sites/peorg/files/documents/Statistiques-et-analyses/Open-data/ROME/261014-ref-formacode-v14-rome-26m10-v62-pour-open-data.xlsx"
+        auth: none
+        notes: "ROME v62 <-> Formacode V14 correspondence (5,958 rows). Filename changes each release."
+        status: verified
+      - id: rome_api
+        type: rest_api
+        url: null            # resource paths only visible after francetravail.io login
+        auth: oauth2_client_credentials
+        auth_env_vars: [FRANCE_TRAVAIL_CLIENT_ID, FRANCE_TRAVAIL_CLIENT_SECRET]
+        rate_limit: "1 call/second (data.gouv.fr)"
+        notes: "4 APIs (Métiers, Compétences, Contextes de travail, Fiches métiers). Not needed: bulk files cover the same referential."
+        status: requires_registration
 
-  - id: onet
-    name: "O*NET"
-    publisher: "U.S. Department of Labor"
-    domains: [occupations, skills]
-    access: "to_verify"
-    auth_env_vars: []
-    base_url: null
-    status: candidate
+  # ---------------------------------------------------------------------------
+  - id: onisep
+    name: "ONISEP — Idéo open data (métiers, formations)"
+    publisher: "Office national d'information sur les enseignements et les professions"
+    domains: [occupations, training]
+    documentation: "https://www.data.gouv.fr/organizations/534fff9ba3a7292c64a78031/"
+    license: "ODbL (Open Database License) — attribution + share-alike on derived databases"
+    resources:
+      - id: onisep_fiches_metiers
+        type: bulk_download
+        format: zip/xml
+        url: "https://data.onisep.fr/api/v1/downloads/5fe0808a2da6f/5fe0808a2da6f.zip"
+        auth: none
+        notes: "1,138 occupations (MET.xxx) with descriptions (HTML fragments), ROME codes (<romesV3>), centres d'intérêt."
+        status: verified
+      - id: onisep_fiches_formations
+        type: bulk_download
+        format: zip/xml
+        url: "https://data.onisep.fr/api/v1/downloads/5fe07a9ecc960/5fe07a9ecc960.zip"
+        auth: none
+        notes: "2,349 trainings (FOR.xxx) linked to >=1 MET; NSF, level, RNCP URL."
+        status: verified
+      - id: onisep_metiers_csv
+        type: bulk_download
+        format: csv
+        url: "https://data.onisep.fr/api/v1/downloads/5fa5949243f97/5fa5949243f97.csv"
+        auth: none
+        notes: "Flat métier list (1 row per métier x publication; 1,560 rows / 1,138 MET). ';'-separated."
+        status: verified
+      - id: onisep_formations_initiales
+        type: bulk_download
+        format: csv
+        url: "https://data.onisep.fr/api/v1/downloads/5fa591127f501/5fa591127f501.csv"
+        auth: none
+        notes: "5,799 initial trainings, NSF / RNCP / code scolarité. ';'-separated."
+        status: verified
+      - id: onisep_table_passage_certifications
+        type: bulk_download
+        format: csv
+        url: "https://data.onisep.fr/api/v1/downloads/6152ccdf850ef/6152ccdf850ef.csv"
+        auth: none
+        notes: "Certif Info <-> RNCP <-> code scolarité <-> Idéo FOR id (5,245 rows)."
+        status: verified
+      - id: onisep_nomenclature_domaines
+        type: bulk_download
+        format: csv
+        url: "https://data.onisep.fr/api/v1/downloads/5fa58d750a60c/5fa58d750a60c.csv"
+        auth: none
+        notes: "20 domains / 132 sub-domains."
+        status: verified
 
-  - id: training_programs
-    name: "Training / education programmes source (to be selected)"
-    publisher: "TBD"
-    domains: [training]
-    access: "to_verify"
-    auth_env_vars: []
-    base_url: null
-    status: candidate
-
-  - id: labour_market
-    name: "Employment / labour-market statistics source (to be selected)"
-    publisher: "TBD"
+  # ---------------------------------------------------------------------------
+  - id: france_travail_labour_market
+    name: "France Travail — employment & labour-market data"
+    publisher: "France Travail"
     domains: [employment]
-    access: "to_verify"
-    auth_env_vars: []
-    base_url: null
-    status: candidate
+    documentation: "https://www.data.gouv.fr/organizations/534fffa3a3a7292c64a78094/"
+    license: "Open files: Licence Ouverte (fr-lo); APIs: francetravail.io terms of use (to review)"
+    resources:
+      - id: ft_bmo
+        type: bulk_download
+        format: xlsx
+        url: "https://www.francetravail.org/files/live/sites/peorg/files/documents/Statistiques-et-analyses/Open-data/BMO/Base-open-data-BMO-2026.xlsx"
+        auth: none
+        license: "Licence Ouverte (fr-lo)"
+        notes: "Enquête Besoins en Main-d'Oeuvre 2026: 53,786 rows = 217 FAP2021 codes x bassin d'emploi. Recruitment projects / difficult / seasonal. '*' = statistical secrecy. Annual; filename and column names change each year."
+        status: verified
+      - id: ft_marche_travail_api
+        type: rest_api
+        url: null            # resource paths only visible after francetravail.io login
+        auth: oauth2_client_credentials
+        auth_env_vars: [FRANCE_TRAVAIL_CLIENT_ID, FRANCE_TRAVAIL_CLIENT_SECRET]
+        rate_limit: "10 calls/second (data.gouv.fr)"
+        notes: "Job seekers, offers, hirings, recruitment difficulty, offered salary by métier/territory. access_type=open after registration."
+        status: requires_registration
+      - id: ft_offres_emploi_api
+        type: rest_api
+        url: null
+        auth: oauth2_client_credentials
+        notes: "Withdrawn from francetravail.io pending review of reuse conditions; access only on request via contact form."
+        status: restricted
+
+  # ---------------------------------------------------------------------------
+  - id: dares_fap
+    name: "DARES — Nomenclature des familles professionnelles (FAP 2021)"
+    publisher: "DARES (Ministère du Travail)"
+    domains: [occupations]       # crosswalk needed to join BMO (FAP) to ROME
+    documentation: "https://www.data.gouv.fr/datasets/la-nomenclature-des-familles-professionnelles-2021"
+    license: "Not specified on data.gouv.fr — to clarify"
+    resources:
+      - id: dares_fap_hierarchy
+        type: bulk_download
+        format: csv
+        url: "https://data.dares.travail-emploi.gouv.fr/api/explore/v2.1/catalog/datasets/dares_nomenclature_fap2021/exports/csv?use_labels=true"
+        auth: none
+        notes: "FAP 22 / 86 / 228 / 341 hierarchy (341 rows). No ROME column."
+        status: verified
+      - id: dares_fap_rome_crosswalk
+        type: bulk_download
+        url: null            # DARES website is behind a captcha (bot protection)
+        auth: none
+        notes: "FAP <-> PCS <-> ROME table referenced from the ROME dataset page. Must be downloaded manually in a browser into data/raw/."
+        status: manual_download

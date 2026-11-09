@@ -32,14 +32,33 @@ def test_missing_settings_file_raises(monkeypatch: pytest.MonkeyPatch, tmp_path:
         config.load_settings(load_env=False)
 
 
-def test_sources_are_unverified_and_have_no_endpoints() -> None:
+ALLOWED_STATUSES = {"verified", "requires_registration", "manual_download", "restricted"}
+
+
+def test_source_registry_structure() -> None:
     sources = config.load_sources()
     assert sources, "source registry should not be empty"
     for src in sources:
-        assert {"id", "name", "domains", "status", "base_url"} <= src.keys()
-        # No endpoint may be recorded before verification.
-        if src["status"] == "candidate":
-            assert src["base_url"] is None
+        assert {"id", "name", "publisher", "domains", "license", "resources"} <= src.keys()
+        for res in src["resources"]:
+            assert {"id", "type", "url", "auth", "status"} <= res.keys()
+            assert res["status"] in ALLOWED_STATUSES
+
+
+def test_only_verified_resources_have_urls() -> None:
+    """No endpoint may be recorded unless it was successfully requested."""
+    for src in config.load_sources():
+        for res in src["resources"]:
+            if res["status"] == "verified":
+                assert res["url"], f"{res['id']} is verified but has no url"
+            else:
+                assert res["url"] is None, f"{res['id']} is not verified but has a url"
+
+
+def test_registry_contains_no_credentials() -> None:
+    text = config.SOURCES_FILE.read_text(encoding="utf-8").lower()
+    for marker in ("client_secret:", "api_key:", "password:", "token:"):
+        assert marker not in text
 
 
 def test_get_secret_required(monkeypatch: pytest.MonkeyPatch) -> None:
