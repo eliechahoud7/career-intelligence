@@ -311,11 +311,114 @@ def run(
     return manifest
 
 
+README_SHEET = "Lisez-moi"
+README_DATASET = f"{DATASET}_lisez_moi"
+README_COLUMNS = [f"col_{c}" for c in "abcdefg"]
+
+
+def read_readme(xlsx_path: Path) -> pd.DataFrame:
+    """Faithful dump of the XLSX 'Lisez-moi' sheet: one row per sheet row, columns A-G as text.
+
+    Numeric cells (the qualification codes 0-9) become their exact integer text; empty cells
+    are NULL; merged cells keep their value in the top-left cell only, as stored in the file.
+    """
+    import openpyxl
+
+    from career_intelligence.ingestion.formacode import cell_text
+
+    wb = openpyxl.load_workbook(xlsx_path, read_only=True, data_only=True)
+    try:
+        ws = wb[README_SHEET]
+        rows = [tuple(r) for r in ws.iter_rows(values_only=True)]
+    finally:
+        wb.close()
+    width = len(README_COLUMNS)
+    if any(len(r) > width and any(c is not None for c in r[width:]) for r in rows):
+        raise ValueError(f"'{README_SHEET}' has values beyond column G")
+    records = [[cell_text(c) for c in (list(r) + [None] * width)[:width]] for r in rows]
+    return pd.DataFrame(records, columns=README_COLUMNS, dtype="string")
+
+
+def run_readme(
+    *,
+    raw_dir: Path | None = None,
+    staging_dir: Path | None = None,
+    resource: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Stage the archived XLSX 'Lisez-moi' sheet (qualification classes 0-9) for Bronze."""
+    resource = resource or config.get_manual_resource(RESOURCE_ID)
+    folder = snapshot_dir(resource, raw_dir)
+    shas = verify_files(resource, folder)  # both pinned files must still match
+    xlsx = folder / resource["files"]["xlsx"]["name"]
+    frame = read_readme(xlsx)
+    header = frame["col_a"].fillna("").str.strip() == "Code de la qualification"
+    classes = frame["col_a"].fillna("").str.fullmatch(r"\d")
+    if int(header.sum()) != 1 or int(classes.sum()) != 10:
+        raise DaresValidationError(
+            [
+                f"readme: expected 1 qualification header and 10 class rows, found "
+                f"{int(header.sum())} and {int(classes.sum())}"
+            ]
+        )
+    run_id = uuid.uuid4().hex[:12]
+    out = frame.copy()
+    for col, value in {
+        "_source_name": SOURCE_NAME,
+        "_source_resource": RESOURCE_ID,
+        "_dataset": README_DATASET,
+        "_source_url": resource["source_page"],
+        "_source_file": xlsx.name,
+        "_source_sheet": README_SHEET,
+        "_source_sha256": shas["xlsx"],
+        "_version": f"manual download {resource['downloaded_on']}",
+        "_snapshot": resource["snapshot"],
+        "_run_id": run_id,
+    }.items():
+        out[col] = pd.Series(value, index=out.index, dtype="string")
+    out["_source_row"] = pd.Series(range(1, len(out) + 1), index=out.index, dtype="int64")
+    out["_ingested_at"] = pd.Timestamp.now(tz="UTC")
+    out_dir = _staging_dir(resource, staging_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / f"{README_DATASET}.parquet"
+    out.to_parquet(path, engine="pyarrow", index=False)
+    manifest = {
+        "run_id": run_id,
+        "resource": RESOURCE_ID,
+        "table": README_DATASET,
+        "source_file": xlsx.name,
+        "sheet": README_SHEET,
+        "sha256": shas["xlsx"],
+        "rows": len(out),
+        "qualification_rows": int(classes.sum()),
+        "license": resource["license"],
+        "staging_file": path.name,
+        "staged_at": datetime.now(UTC).isoformat(timespec="seconds"),
+    }
+    mf = out_dir / f"{README_DATASET}.manifest.json"
+    mf.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    logger.info("Wrote %s (%d rows) and %s", path, len(out), mf)
+    return manifest
+
+
 def main(argv: list[str] | None = None) -> int:
-    argparse.ArgumentParser(
+    parser = argparse.ArgumentParser(
         description="Verify, validate and stage the DARES ROME x "
         "qualification -> FAP2021 table (manual download)."
-    ).parse_args(argv)
+    )
+    parser.add_argument(
+        "--readme",
+        action="store_true",
+        help="stage only the XLSX 'Lisez-moi' sheet (qualification classes)",
+    )
+    args = parser.parse_args(argv)
+    if args.readme:
+        try:
+            manifest = run_readme()
+        except (DaresValidationError, config.ConfigError, OSError, ValueError) as exc:
+            logger.error("%s", exc)
+            return 1
+        print(json.dumps(manifest, ensure_ascii=False, indent=2))
+        return 0
     try:
         manifest = run()
     except (

@@ -210,6 +210,12 @@ sources:
         auth: none
         notes: "FAP 22 / 86 / 228 / 341 hierarchy (341 rows). No ROME column."
         status: verified
+        local_file: "dares_nomenclature_fap2021.csv"
+        sha256: "9c6b5f2148d8273fcfa2af7fc85345faa7b2a1518c9cc55ad0d01d1ae48b6e8d"
+        version: "DARES open-data dataset dares_nomenclature_fap2021, modified 2024-04-30 (export is deterministic: identical sha256 in Phase 02 and Phase 13a)"
+        snapshot: "20240430"
+        license: "UNCONFIRMED — no licence declared on the DARES open-data portal or on data.gouv.fr ('not specified'); do not assume Licence Ouverte"
+        connector: career_intelligence.ingestion.fap2021   # Phase 13a -> bronze.dares_fap2021_nomenclature
       - id: dares_rome_qualif_fap2021
         type: manual_download
         format: csv (cp1252, ';', CRLF) + xlsx (documentation)
@@ -230,3 +236,4 @@ sources:
         notes: "ROME V3 x qualification class (0-9) -> FAP341. 5,320 rows; 532 ROME V3 codes x 10 classes; 337 FAP341. Qualification-dependent: never collapse to ROME -> FAP."
         status: verified_manual
         connector: career_intelligence.ingestion.dares   # Phase 10 -> bronze.dares_rome_qualif_fap2021
+        readme_table: "Phase 13a -> bronze.dares_rome_qualif_fap2021_lisez_moi (raw 'Lisez-moi' sheet of the XLSX: qualification classes 0-9)"

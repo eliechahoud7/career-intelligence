@@ -44,9 +44,33 @@ def write_csv(path: Path, data) -> None:
     path.write_bytes(text.encode("cp1252"))
 
 
-def write_xlsx(path: Path) -> None:
+README_QUALIFS = [
+    (0, "Non précisé", None),
+    (1, "Manœuvres", None),
+    (2, "Ouvriers non qualifiés", "67XX, 68XX"),
+    (3, "Ouvriers qualifiés", "62XX"),
+    (4, "Indépendants", "10XX, 2000"),
+    (5, "Employés non qualifiés", "5000"),
+    (6, "Employés qualifiés", "5200"),
+    (7, "Techniciens", "43C0"),
+    (8, "Agents de maîtrise", "4000"),
+    (9, "Ingénieurs et cadres", "3000, 31XX"),
+]
+
+
+def write_xlsx(path: Path, qualifs=README_QUALIFS) -> None:
     wb = openpyxl.Workbook()
-    wb.active.title = "Lisez-moi"
+    readme = wb.active
+    readme.title = "Lisez-moi"
+    readme.append(["Table de passage"])
+    readme.append([])
+    readme.append(["Nomenclature des qualifications"])
+    readme.append(
+        ["Code de la qualification", "Intitulé de la qualification", "PCS correspondantes"]
+    )
+    for code, label, pcs in qualifs:
+        readme.append([code, label, pcs])
+    readme.append(["source : Dares, nomenclature des familles professionnelles FAP-2021."])
     ws = wb.create_sheet("ROME_Qualif_to_FAP341")
     ws.append(["Rome", "Qualification", "Intitulé.Rome", "FAP_2021", "Intitulé.FAP"])
     ws.append(["A1101", None, "Conduite", "A0X43", "Conducteurs"])
@@ -77,6 +101,46 @@ def make(tmp_path: Path, data=None) -> tuple[dict, Path]:
         },
     }
     return resource, folder
+
+
+# --------------------------------------------------------------------------- readme (Phase 13a)
+def test_read_readme_is_faithful(tmp_path: Path) -> None:
+    _, folder = make(tmp_path)
+    frame = dares.read_readme(folder / XLSX_NAME)
+    assert list(frame.columns) == dares.README_COLUMNS and len(frame) == 15
+    q = frame[frame["col_a"].fillna("").str.fullmatch(r"\d")]
+    assert q["col_a"].tolist() == [str(i) for i in range(10)]  # numeric cells -> exact text
+    assert q.iloc[1]["col_b"] == "Manœuvres" and pd.isna(q.iloc[1]["col_c"])  # no PCS invented
+    assert q.iloc[2]["col_c"] == "67XX, 68XX"  # PCS list kept as published
+
+
+def test_run_readme_stages_with_lineage(tmp_path: Path) -> None:
+    resource, _ = make(tmp_path)
+    manifest = dares.run_readme(
+        raw_dir=tmp_path / "raw", staging_dir=tmp_path / "stg", resource=resource
+    )
+    out = tmp_path / "stg" / "dares" / "fap2021" / "20261109"
+    df = pd.read_parquet(out / f"{dares.README_DATASET}.parquet")
+    assert manifest["qualification_rows"] == 10 and len(df) == 15
+    assert len([c for c in df.columns if c.startswith("_")]) == 12
+    assert set(df["_source_sheet"]) == {"Lisez-moi"}
+    assert set(df["_source_sha256"]) == {resource["files"]["xlsx"]["sha256"]}
+    assert not (out / f"{dares.DATASET}.parquet").exists()  # correspondence staging untouched
+
+
+def test_run_readme_rejects_incomplete_qualification_table(tmp_path: Path) -> None:
+    resource, folder = make(tmp_path)
+    write_xlsx(folder / XLSX_NAME, qualifs=README_QUALIFS[:9])  # class 9 missing
+    resource["files"]["xlsx"]["sha256"] = sha(folder / XLSX_NAME)
+    with pytest.raises(dares.DaresValidationError, match="10 class rows"):
+        dares.run_readme(raw_dir=tmp_path / "raw", staging_dir=tmp_path / "stg", resource=resource)
+
+
+def test_run_readme_stops_on_checksum_mismatch(tmp_path: Path) -> None:
+    resource, _ = make(tmp_path)
+    resource["files"]["xlsx"]["sha256"] = "0" * 64
+    with pytest.raises(dares.DaresValidationError, match="xlsx checksum mismatch"):
+        dares.run_readme(raw_dir=tmp_path / "raw", staging_dir=tmp_path / "stg", resource=resource)
 
 
 # --------------------------------------------------------------------------- checksums

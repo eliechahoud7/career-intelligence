@@ -29,7 +29,7 @@ successfully requested during verification; nothing below comes from guesswork.
 | France Travail BMO 2026 | employment | open, no auth | Licence Ouverte | ✅ verified |
 | France Travail API Marché du travail | employment | OAuth2, registration | francetravail.io terms | 🔒 requires registration |
 | France Travail API Offres d'emploi | job offers | **withdrawn** | — | ⛔ restricted |
-| DARES FAP 2021 hierarchy | crosswalk | open, no auth | not specified | ✅ verified |
+| DARES FAP 2021 hierarchy | crosswalk | open, no auth | **unconfirmed** (not specified) | ✅ verified, loaded (Phase 13a) |
 | DARES ROME (V3) × qualification → FAP341 table | crosswalk | captcha-protected site, **manual download** | **unconfirmed** | ✅ verified (manual, sha256-pinned) |
 
 ---
@@ -328,6 +328,34 @@ Demandeurs d'emploi inscrits (quarterly CVS-CJO series), Offres d'emploi diffus�
 ## 4. Crosswalk — DARES FAP 2021
 
 - **Hierarchy — ✅ verified:** `https://data.dares.travail-emploi.gouv.fr/api/explore/v2.1/catalog/datasets/dares_nomenclature_fap2021/exports/csv?use_labels=true` — 341 rows, columns `Code FAP 22 / 86 / 228 / 341` + labels. **No ROME column.** Licence "not specified" on data.gouv.fr.
+
+**Phase 13a — FAP hierarchy, qualification classes and DARES Silver:**
+
+- **Provenance:** DARES open-data portal, dataset `dares_nomenclature_fap2021` (publisher
+  "Dares - service statistique du ministère en charge du Travail"), modified 2024-04-30.
+  CSV export: UTF-8 with BOM, `;`, CRLF, 8 columns, one row per FAP341 with its official
+  FAP228 / FAP86 / FAP22 parents. The export is **deterministic** (identical sha256
+  `9c6b5f21…6e8d` in Phase 02 and twice in Phase 13a) and pinned in `config/sources.yaml`.
+- **Licence: UNCONFIRMED** — no licence declared on the portal (`license: null`) nor on
+  data.gouv.fr ("not specified"). Not assumed to be Licence Ouverte; recorded as
+  `UNCONFIRMED` on every table derived from it.
+- **Qualification classes:** taken from the `Lisez-moi` sheet of the archived DARES XLSX
+  (rows 16–25 under the header "Code de la qualification / Intitulé / PCS correspondantes"):
+  10 classes 0–9 with labels; PCS codes are published for classes 2–9 only (112 codes, with
+  `XX` wildcards); classes 0 ("Non précisé") and 1 ("Manœuvres") have none — kept NULL. The
+  sheet is loaded faithfully as `bronze.dares_rome_qualif_fap2021_lisez_moi` (27 rows).
+- **Tables:** `bronze.dares_fap2021_nomenclature` (341), `bronze.dares_rome_qualif_fap2021_lisez_moi`
+  (27); `silver.fap2021` (341, official parents; the 5-character prefix rule agrees for 341/341
+  and is used as a check only), `silver.dares_qualification` (10),
+  `silver.dares_rome_v3_fap341` (5,320, key `code_rome_v3, code_qualification`; 337 FAP341, all
+  resolved; 282 qualification-dependent ROME V3 codes). The identifier is **`code_rome_v3`**:
+  ROME V3 is never joined to ROME 4.0 v62, `code_rome_parent` is not used, no BMO figures.
+- **FAP labels:** the correspondence's FAP341 labels match the official ones for 334/337 after
+  whitespace normalisation; 3 differ only by an initial capital (the official file has
+  `masseurs-kinésithérapeuthes`, `acheteurs`, `action et médiation sociale`). Silver keeps the
+  link only; FAP labels come from `silver.fap2021`, case as published.
+- Connectors: `career_intelligence.ingestion.fap2021`, `career_intelligence.ingestion.dares --readme`;
+  SQL: `sql/bronze/06_dares_fap2021*.sql`, `sql/silver/05_dares*.sql`.
 - **ROME × qualification → FAP341 table — ✅ verified (manual download, Phase 10).**
   The DARES site (incl. its static files) serves a captcha to automated clients and the
   open-data mirrors only hold the hierarchy, so the files were downloaded in a browser on
@@ -397,7 +425,7 @@ Demandeurs d'emploi inscrits (quarterly CVS-CJO series), Offres d'emploi diffus�
 ## 6. Open items
 
 - [x] ~~Download the DARES FAP ↔ ROME table manually; check its ROME version~~ — done (Phase 10): ROME **V3** × qualification → FAP341, loaded to Bronze.
-- [ ] **DARES licence:** confirm the reuse conditions of the correspondence table (site legal notice) — currently UNCONFIRMED.
+- [ ] **DARES licence:** confirm the reuse conditions of the correspondence table (site legal notice) and of the FAP 2021 nomenclature export (none declared on the open-data portal) — currently UNCONFIRMED.
 - [ ] **Decision pending:** whether `code_rome_parent` may bridge ROME V3 families to v62 codes in Silver/Gold; and how BMO figures are presented given qualification-conditional links (no apportioning).
 - [x] ~~Decide whether to register on francetravail.io~~ — **decided 2026-11-09: not now.** BMO 2026 is the first employment dataset.
 - [ ] Test outbound access (still open: BMO was loaded by uploading the local staging file, so this is not yet needed) from Databricks Free Edition serverless to `api.francetravail.fr`, `data.onisep.fr`, `www.francetravail.org` and `www.data.gouv.fr`.
