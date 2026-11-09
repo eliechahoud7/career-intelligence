@@ -1,0 +1,40 @@
+# =============================================================================
+# Application settings template (non-secret values only).
+# Copy to config/settings.yaml (git-ignored) to override locally.
+# Secrets are NEVER stored here — they come from environment variables
+# (.env locally) or Databricks secret scopes.
+# =============================================================================
+
+project:
+  name: career-intelligence
+  environment: dev            # overridden by CI_ENV
+
+databricks:
+  # Unity Catalog names (Databricks Free Edition uses Unity Catalog)
+  catalog: career_intelligence
+  schemas:
+    bronze: bronze            # raw API payloads, as ingested
+    silver: silver            # cleaned, typed, deduplicated
+    gold: gold                # integrated, search-ready tables
+  # Unity Catalog volume for landing raw files
+  landing_volume: landing
+
+ingestion:
+  http:
+    timeout_seconds: 30
+    max_retries: 3
+    backoff_factor: 1.0
+    user_agent: "career-intelligence/0.1 (academic project)"
+  default_language: fr        # to confirm once sources are selected
+
+local:
+  data_dir: data
+  raw_dir: data/raw
+  sample_dir: data/sample
+
+app:
+  title: "Career Intelligence"
+  page_size: 20
+
+logging:
+  level: INFO                 # overridden by CI_LOG_LEVEL

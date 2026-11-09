@@ -1,0 +1,56 @@
+# =============================================================================
+# Candidate data-source registry.
+#
+# IMPORTANT: every entry is UNVERIFIED. No endpoint, schema, licence or access
+# condition is assumed. `base_url` stays null until the source has been
+# checked against its official documentation and a test request has succeeded.
+# The verification evidence is recorded in docs/DATA_SOURCES.md.
+#
+# status: candidate -> verified -> implemented | rejected
+# =============================================================================
+
+sources:
+  - id: esco
+    name: "ESCO — European Skills, Competences, Qualifications and Occupations"
+    publisher: "European Commission"
+    domains: [occupations, skills]
+    access: "to_verify"           # expected public; confirm API vs. bulk download
+    auth_env_vars: []
+    base_url: null
+    status: candidate
+
+  - id: rome_france_travail
+    name: "ROME — Répertoire Opérationnel des Métiers et des Emplois"
+    publisher: "France Travail"
+    domains: [occupations, skills]
+    access: "to_verify"           # expected developer registration
+    auth_env_vars: []
+    base_url: null
+    status: candidate
+
+  - id: onet
+    name: "O*NET"
+    publisher: "U.S. Department of Labor"
+    domains: [occupations, skills]
+    access: "to_verify"
+    auth_env_vars: []
+    base_url: null
+    status: candidate
+
+  - id: training_programs
+    name: "Training / education programmes source (to be selected)"
+    publisher: "TBD"
+    domains: [training]
+    access: "to_verify"
+    auth_env_vars: []
+    base_url: null
+    status: candidate
+
+  - id: labour_market
+    name: "Employment / labour-market statistics source (to be selected)"
+    publisher: "TBD"
+    domains: [employment]
+    access: "to_verify"
+    auth_env_vars: []
+    base_url: null
+    status: candidate

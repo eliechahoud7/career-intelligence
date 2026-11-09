@@ -1,0 +1,4 @@
+# Development and test tooling
+-r requirements.txt
+pytest>=8.0,<9
+ruff>=0.6
