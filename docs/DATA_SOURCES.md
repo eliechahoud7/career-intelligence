@@ -155,10 +155,34 @@ No authentication. **GET only** — a `HEAD` request returns 404.
 - Connector: `career_intelligence.ingestion.formacode`; load/checks:
   `sql/bronze/05_formacode.sql`, `sql/bronze/05_formacode_checks.sql`.
 
+**Phase 12 — Silver (4 tables, `career_intelligence.silver`):**
+
+| Table | Rows | Key | Content |
+|---|---|---|---|
+| `formacode_grand_domaine` | 14 | `code_grand_domaine` | official domain labels; literal `'null'` note → NULL (D3) |
+| `formacode` | 2,775 | `code_formacode` | official V14 label, semantic field (code + label, D5), `code_formacode_parent`, `code_grand_domaine`, `niveau` 1–6, `nb_termes_specifiques`, `est_terme_feuille` (689 broad / 2,086 leaf), synonyms as arrays, notes |
+| `formacode_terme_associe` | 3,166 | (`code_formacode`, `code_formacode_associe`) | related terms (TA); self-references excluded (D1); 76 targets outside the descriptors (annex lists, 49 codes) kept with `terme_associe_dans_descripteurs = false` (D2) |
+| `rome_metier_formacode` | 5,958 | (`code_rome`, `code_formacode`) | every correspondence link, many-to-many, broad and leaf terms, no weights / primary link, no correspondence labels (D6) |
+
+- **Verified encoding of the thesaurus:** TG = `Label - NNNNN` (exactly one parent) or, for the
+  65 top terms (one per semantic field), the label of a top-level domain; TS lists are exactly
+  the reverse of TG (so narrower terms are derived from `code_formacode_parent`, D8);
+  `code_arborescence` extends the parent's by one segment (`niveau` = segments − 1); the
+  semantic field is constant down the tree; domain = domain of the field's top term (D7),
+  equal to the tree-code letter for all 2,775. Codes are parsed from the trailing ` - NNNNN`
+  (labels may contain ` - `). Every TA list contains its own descriptor (export artefact).
+- **Labels** come only from the official descriptors (whitespace-normalised); the
+  correspondence's Title-Case labels remain in Bronze. Always-empty descriptor columns
+  (`note_de_version`, `ex_synonyme_v_1`) are not carried (D4).
+- Build: `sql/silver/04_formacode.sql`; checks: `sql/silver/04_formacode_checks.sql`.
+
 *Phase 02 notes:*
 `261014-ref-formacode-v14-rome-26m10-v62-pour-open-data.xlsx` — 5,958 rows:
 `Code ROME`, `Libellé fiche ROME`, `Code OGR ROME`, `Code FORMACODE V14`, `Libellé FORMACODE V14`.
-⚠️ The filename is release-specific (`261014-…-26m10-v62`), so connectors must find the current link from the data.gouv.fr dataset API instead of hard-coding it.
+⚠️ The filename is release-specific (`261014-…-26m10-v62`). *Superseded (Phase 11):* the
+connector uses the URL **and sha256 pinned** in `config/sources.yaml` for reproducibility; at
+each ROME release the new URL is looked up on the data.gouv.fr ROME dataset, verified, and the
+registry entry (URL, sha256, snapshot) is updated deliberately.
 
 ### 1c. ROME 4.0 REST APIs — 🔒 requires registration
 - 4 APIs: Métiers, Compétences, Contextes de travail, Fiches métiers. Rate limit **1 call/s**.
@@ -365,7 +389,7 @@ Demandeurs d'emploi inscrits (quarterly CVS-CJO series), Offres d'emploi diffus�
 | ONISEP training | ONISEP occupation | `metiers_formation/metier/id` = `MET.xxx` | 2,349/2,349 |
 | ONISEP training | ROME (transitive) | FOR → MET → `code_rome` | 2,212/2,349 (94 %) |
 | ONISEP training | certifications | RNCP (URL), `code_scolarite`, Certif Info (table de passage) | 1,506 with RNCP |
-| ROME | training domain | Formacode V14 (`bronze.rome_formacode_v14` → `bronze.formacode_v14_descripteurs`) | 5,958 links, many-to-many; 1,923/1,923 ROME v62, 1,220/1,220 Formacodes resolved |
+| ROME | training domain | Formacode V14 (`silver.rome_metier_formacode` → `silver.formacode`) | 5,958 links, many-to-many; 1,923/1,923 ROME v62, 1,220/1,220 Formacodes resolved (445 broad, 775 leaf) |
 | BMO (FAP2021, 228 level) | ROME (V3) | `bronze.dares_rome_qualif_fap2021` (ROME × qualification → FAP341, rolled up to FAP228 via the DARES hierarchy) | many-to-many, **qualification-dependent**; ROME V3 ≠ v62 scope — not joined yet |
 | Marché du travail API | ROME | expected `code_rome` | **unverified** (registration) |
 | Territory | all employment data | INSEE region / department codes, bassin d'emploi | native in BMO |

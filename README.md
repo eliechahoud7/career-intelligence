@@ -108,7 +108,7 @@ databricks auth login --host https://<your-workspace>.cloud.databricks.com --pro
 | Catalog | `career_intelligence` |
 | Schemas | `career_intelligence.bronze`, `career_intelligence.silver` |
 | Volume | `career_intelligence.bronze.landing` → `/Volumes/career_intelligence/bronze/landing/` |
-| Tables | `bronze.bmo_2026` (raw text) → `silver.bmo_2026` (typed, cleaned)<br>`bronze.rome_<entity>` — 29 raw ROME 4.0 tables, one per source CSV<br>`silver.rome_*` — 24 clean ROME tables: 13 reference entities + 11 occupation links<br>`bronze.onisep_fiches_metiers`, `bronze.onisep_fiches_formations`, `bronze.onisep_formations_initiales` — raw ONISEP (ODbL)<br>`silver.onisep_*` — 8 ONISEP tables: occupations, training sheets, training catalogue + 5 relationships (incl. occupation → ROME)<br>`bronze.dares_rome_qualif_fap2021` — DARES ROME V3 × qualification → FAP341 (raw; qualification-dependent)<br>`bronze.rome_formacode_v14`, `bronze.formacode_v14_descripteurs`, `bronze.formacode_v14_grands_domaines` — ROME v62 ↔ Formacode V14 + official thesaurus |
+| Tables | `bronze.bmo_2026` (raw text) → `silver.bmo_2026` (typed, cleaned)<br>`bronze.rome_<entity>` — 29 raw ROME 4.0 tables, one per source CSV<br>`silver.rome_*` — 24 clean ROME tables: 13 reference entities + 11 occupation links<br>`bronze.onisep_fiches_metiers`, `bronze.onisep_fiches_formations`, `bronze.onisep_formations_initiales` — raw ONISEP (ODbL)<br>`silver.onisep_*` — 8 ONISEP tables: occupations, training sheets, training catalogue + 5 relationships (incl. occupation → ROME)<br>`bronze.dares_rome_qualif_fap2021` — DARES ROME V3 × qualification → FAP341 (raw; qualification-dependent)<br>`bronze.rome_formacode_v14`, `bronze.formacode_v14_descripteurs`, `bronze.formacode_v14_grands_domaines` — ROME v62 ↔ Formacode V14 + official thesaurus<br>`silver.formacode`, `silver.formacode_grand_domaine`, `silver.formacode_terme_associe`, `silver.rome_metier_formacode` — Formacode thesaurus (official labels, hierarchy) + occupation → training-domain links |
 
 Load steps (run SQL on the SQL warehouse, e.g. from the SQL editor):
 
@@ -125,6 +125,7 @@ Load steps (run SQL on the SQL warehouse, e.g. from the SQL editor):
 10. `sql/silver/03_onisep.sql` (8 tables; needs `silver.rome_metier`) and `sql/silver/03_onisep_checks.sql` — every `check_*` must be `true`
 11. DARES: download the two files manually (site behind a captcha) into `data/raw/dares/fap2021/<YYYYMMDD>/`, run the connector, upload (commands in the header of `sql/bronze/04_dares.sql`), then `sql/bronze/04_dares.sql` and `sql/bronze/04_dares_checks.sql`
 12. Formacode: run the connector, upload (commands in the header of `sql/bronze/05_formacode.sql`), then `sql/bronze/05_formacode.sql` and `sql/bronze/05_formacode_checks.sql` (needs `silver.rome_metier`)
+13. `sql/silver/04_formacode.sql` (4 tables) and `sql/silver/04_formacode_checks.sql` — every `check_*` must be `true`
 
 PySpark is provided by the Databricks runtime. For local Spark execution (requires Java 17)
 install the optional extra: `python -m pip install -e ".[spark]"`.
