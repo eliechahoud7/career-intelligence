@@ -177,6 +177,21 @@ Matching is case- and accent-insensitive, every word is required, and results ar
 match tier (`rang_pertinence`). BMO figures are never linked to ROME occupations. Details:
 `docs/DATA_SOURCES.md` §7.
 
+## Lancer l'application
+
+The Streamlit application (French) currently offers profession search and the occupation profile
+(ROME 4.0 v62). It queries Databricks only through the search contracts; credentials stay on the
+server.
+
+1. Install the Databricks client: `python -m pip install -e ".[databricks]"`
+2. Log in once with the CLI (the token is obtained in memory, never stored by the app):
+   `databricks auth login --host https://<your-workspace>.cloud.databricks.com --profile career-intelligence`
+3. In `.env` (git-ignored), set `DATABRICKS_CONFIG_PROFILE`, `DATABRICKS_SERVER_HOSTNAME`
+   (workspace host without `https://`) and `DATABRICKS_WAREHOUSE_ID` (see `.env.example`).
+4. From the project root: `streamlit run app/streamlit_app.py --server.address localhost`
+   (opens http://localhost:8501). Keep `--server.address localhost`: without it Streamlit also
+   listens on the network, and every query runs with your Databricks login.
+
 ## Configuration & secrets
 
 - Non-secret settings: `config/settings.yaml` (copied from the example).

@@ -1,0 +1,37 @@
+# Career Intelligence — Streamlit theme (visual design only; no secrets in this file).
+# Palette: navy #142B4A, blue #2563EB, teal #0D9488, background #F4F7FB, cards #FFFFFF,
+# text #1E293B. Badge colours are remapped so that "blue" = ROME codes / main items and
+# "green" = the teal accent (core skills, positive statuses).
+
+[theme]
+base = "light"
+primaryColor = "#2563EB"
+backgroundColor = "#F4F7FB"
+secondaryBackgroundColor = "#EEF2F8"
+textColor = "#1E293B"
+linkColor = "#2563EB"
+linkUnderline = false
+borderColor = "#E2E8F0"
+showWidgetBorder = true
+baseRadius = "10px"
+buttonRadius = "8px"
+showSidebarBorder = false
+headingFontWeights = [700, 700, 600, 600, 600, 600]
+blueColor = "#2563EB"
+blueBackgroundColor = "#E0EAFF"
+blueTextColor = "#1D4ED8"
+greenColor = "#0D9488"
+greenBackgroundColor = "#D5F5EF"
+greenTextColor = "#0F766E"
+grayBackgroundColor = "#EEF2F7"
+grayTextColor = "#475569"
+dataframeHeaderBackgroundColor = "#F1F5F9"
+dataframeBorderColor = "#E2E8F0"
+
+[theme.sidebar]
+backgroundColor = "#142B4A"
+secondaryBackgroundColor = "#1D3A60"
+textColor = "#E2E8F0"
+primaryColor = "#5EEAD4"
+linkColor = "#BFDBFE"
+borderColor = "#2A4772"
