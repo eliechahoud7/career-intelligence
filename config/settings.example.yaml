@@ -1,8 +1,8 @@
 # =============================================================================
 # Application settings template (non-secret values only).
 # Copy to config/settings.yaml (git-ignored) to override locally.
-# Secrets are NEVER stored here — they come from environment variables
-# (.env locally) or Databricks secret scopes.
+# Secrets are NEVER stored here — Databricks access uses the Databricks CLI OAuth login,
+# and the non-secret workspace settings (host, SQL warehouse, CLI profile) live in .env.
 # =============================================================================
 
 project:

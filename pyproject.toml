@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Multi-source data integration and search platform for occupations, skills, training and labour-market information."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
-license = { text = "Proprietary — academic project" }
+license = { text = "Proprietary — All Rights Reserved (academic portfolio project)" }
 authors = [{ name = "Elie Chahoud" }]
 dependencies = [
     "requests>=2.32,<3",
@@ -23,7 +23,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0,<9", "ruff>=0.6"]
-# Databricks SQL client: live search-contract tests (tests/live) and the future app.
+# Databricks SQL client: required by the Streamlit application and the live tests (tests/live).
 databricks = ["databricks-sql-connector>=4,<5"]
 # Local Spark execution (Databricks provides Spark/Delta at runtime).
 # Not installed by default; pin to the Databricks runtime version once chosen.

@@ -1,6 +1,6 @@
 # Runtime dependencies — kept minimal.
-# Connector- and platform-specific packages (e.g. PySpark, Databricks clients)
-# are added only once the corresponding component is implemented.
+# The Databricks SQL client used by the Streamlit application and the live tests is the
+# optional extra `databricks` in pyproject.toml:  python -m pip install -e ".[databricks]"
 requests>=2.32,<3
 python-dotenv>=1.0,<2
 PyYAML>=6.0,<7

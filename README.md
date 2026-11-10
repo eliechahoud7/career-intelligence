@@ -8,8 +8,9 @@ Streamlit application.
 
 > **Status:** complete and validated as an academic portfolio project, run locally. Six official
 > datasets are loaded from Bronze to Gold, exposed by a SQL search layer of 22 query contracts and
-> used by four application pages. 621 offline tests and 55 live Databricks tests pass, and every
-> data-quality check (`check_*`) of the SQL check files is `true`.
+> used by four application pages. Final validation: 621 offline tests passed (2 skipped: the
+> opt-in live suites), 55 live Databricks tests passed, and 325/325 SQL data-quality checks
+> (`check_*`) are `true`.
 
 ## Features
 
@@ -87,7 +88,8 @@ from the initial structure: every transformation is a SQL script in `sql/`.
 ## Getting started (Windows / PowerShell)
 
 ```powershell
-# 1. Activate the virtual environment
+# 1. Create and activate the virtual environment (Python 3.12)
+py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
 # 2. Install dependencies (runtime + dev tools) and the package in editable mode
@@ -222,7 +224,9 @@ queries Databricks only through the search contracts; credentials stay on the se
 ## Configuration & secrets
 
 - Non-secret settings: `config/settings.yaml` (copied from the example).
-- Secrets: environment variables in `.env` locally, **Databricks secret scopes** in the workspace.
+- Secrets: none are stored. The application and the live tests authenticate with the Databricks
+  CLI OAuth login (short-lived token kept in memory); `.env` holds only the workspace host,
+  SQL warehouse id and CLI profile name.
 - `.env`, `config/settings.yaml`, `.databrickscfg` and `.streamlit/secrets.toml` are git-ignored.
   **Never commit credentials.**
 
@@ -252,8 +256,9 @@ Not implemented by decision: DARES qualification page (licence unconfirmed), pub
 
 ## License
 
-Academic project — all rights reserved unless stated otherwise. Each external data source
-remains subject to its own licence and terms of use.
+Proprietary — All Rights Reserved (academic portfolio project). No licence is granted to copy,
+modify or redistribute the code. Each external data source remains subject to its own licence and
+terms of use.
 
 ### Data attribution
 

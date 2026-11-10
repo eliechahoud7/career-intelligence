@@ -61,7 +61,7 @@ Users should be able to (original objectives, with their delivered status):
 ## 4. Constraints and principles
 
 - **No assumed data access:** each source is verified (documentation, licence, authentication, test call) before a connector is written.
-- **No secrets in the repository:** credentials via `.env` locally (git-ignored) and Databricks secret scopes in the workspace.
+- **No secrets in the repository:** workspace settings in `.env` locally (git-ignored); authentication through the Databricks CLI OAuth login, so no token is stored.
 - **Platform limits:** Databricks Free Edition (serverless compute, quotas, Unity Catalog). Its outbound network access and quotas must be checked early, as they determine whether ingestion runs inside Databricks or locally with upload of raw files.
 - **Proportionate complexity:** Master's-level project; prefer simple, well-documented solutions over additional tools.
 
