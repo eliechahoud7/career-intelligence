@@ -336,7 +336,7 @@ def test_family_filter_without_match(fake):
 def test_difficulties_ranked_by_minimum_count_without_rate(fake):
     fake()
     at = marche()
-    assert any("Aucun taux de difficulté n'est calculé" in i.value for i in at.info)
+    assert "Aucun taux de difficulté" not in text_of(at)
     table = table_with(at, "Cellules masquées — projets jugés difficiles (%)")
     assert list(table["Famille de métiers"]) == [
         FAMILLES["V0X40"],

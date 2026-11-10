@@ -376,7 +376,7 @@ def test_formacode_validation_message(fake):
 # --- C. ONISEP training ----------------------------------------------------------------------
 
 
-def test_onisep_coverage_from_gold_and_explained(fake):
+def test_onisep_coverage_from_gold(fake):
     executor = fake()
     at = formations_page()
     assert calls(executor, "couverture_onisep") == [{}]
@@ -384,9 +384,7 @@ def test_onisep_coverage_from_gold_and_explained(fake):
     assert metric.value == "392 / 1 923"
     text = text_of(at)
     assert "environ 20,4 %" in text
-    warning = next(w.value for w in at.warning if "partielle" in w.value)
-    assert "cite 407 codes ROME" in warning and "seuls 392" in warning
-    assert "6 codes ROME" in warning and "ne sont pas comptés" in warning
+    assert "La couverture ONISEP est partielle" not in text and "cite 407" not in text
 
 
 def test_onisep_attribution_separate_from_formacode(fake):

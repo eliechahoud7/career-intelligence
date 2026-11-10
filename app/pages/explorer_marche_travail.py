@@ -261,13 +261,6 @@ def onglet_familles(nationales: pd.DataFrame) -> None:
 
 
 def onglet_difficultes(zones_regions: pd.DataFrame) -> None:
-    st.info(
-        "Aucun taux de difficulté n'est calculé. Les deux chiffres nécessaires sont des minimums "
-        "dont une partie des cellules est masquée : leur rapport ne serait pas fiable. Le "
-        "classement repose sur le nombre minimum de projets jugés difficiles, à lire avec la "
-        "part de cellules masquées, qui peut dépasser la moitié.",
-        icon=":material/info:",
-    )
     options = ["FR", *zones_regions["code_geo"]]
     noms = {
         "FR": "France entière",

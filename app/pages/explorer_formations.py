@@ -16,7 +16,6 @@ from common import PROFILE_PAGE, attribution, hero, load, plain, section
 
 # Documented in docs/DATA_SOURCES.md (Silver counts, not exposed by Gold).
 DESCRIPTEURS_THESAURUS = 2775
-CODES_ROME_SOURCE_ONISEP = 407
 TYPES_LIEN = {
     "formation_menant_au_metier": "Formations menant au métier",
     "formation_minimale_requise": "Formation minimale requise",
@@ -247,15 +246,6 @@ def onglet_onisep() -> None:
             help="Calculé sur les liens formation ↔ métier publiés par l'ONISEP.",
         )
         st.caption(f"Soit environ {pourcentage(avec, total)} des métiers du répertoire ROME.")
-        st.warning(
-            f"La couverture ONISEP est partielle. La source ONISEP cite "
-            f"{nombre(CODES_ROME_SOURCE_ONISEP)} codes ROME, mais seuls {nombre(avec)} sont "
-            "reliés à au moins une formation exploitable. "
-            f"{couv['nb_codes_rome_non_resolus']} codes ROME cités par l'ONISEP ne correspondent "
-            "à aucun code ROME 4.0 valide : ils sont signalés à part et ne sont pas comptés. "
-            "L'absence de formation pour un métier ne signifie pas qu'aucune formation n'existe.",
-            icon=":material/warning:",
-        )
 
     with st.container(border=True, key="card-onisep"):
         st.text_input(
