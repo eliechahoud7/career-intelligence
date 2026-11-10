@@ -1,30 +1,30 @@
 # Career Intelligence
 
-**Multi-Source Data Integration & Search Platform** for professional orientation.
+**Multi-source data integration and search platform for career guidance in France.**
 
-Career Intelligence integrates French open data on occupations, skills, training programmes and
-recruitment intentions into a layered model on Databricks, and exposes it through a French-language
-Streamlit application.
+## Overview
 
-> **Status:** complete and validated as an academic portfolio project, run locally. Six official
-> datasets are loaded from Bronze to Gold, exposed by a SQL search layer of 22 query contracts and
-> used by four application pages. Final validation: 622 offline tests passed (2 skipped: the
-> opt-in live suites), 55 live Databricks tests passed, and 325/325 SQL data-quality checks
-> (`check_*`) are `true`.
+Choosing an occupation or a training path means consulting public data that is scattered across
+several publishers: the ROME occupation repository, training classifications and catalogues, and
+labour-market surveys. Each source has its own identifiers, formats and licence.
 
-## Features
+Career Intelligence integrates six official French open datasets into a layered data model on
+Databricks (Bronze → Silver → Gold → Search) and exposes it through a French-language Streamlit
+application. It lets a user:
 
-The Streamlit application (French) has four pages:
+- search occupations and read their profile and skills;
+- explore training domains and training programmes linked to occupations;
+- explore recruitment intentions by occupational family and area.
 
-| Page | Content | Sources |
-|---|---|---|
-| **Rechercher un métier** | Search occupations by name, ROME code or keyword, with domain, professional domain, *cadre* and regulated-occupation filters, pagination and a « Rechercher » button | ROME 4.0 v62 |
-| **Fiche métier** | Occupation profile: definition, access, job titles, skills (savoir-faire, savoir-être, savoirs, work contexts), RIASEC and transition indicators | ROME 4.0 v62 |
-| **Explorer les formations** | Formacode V14 training domains (14 grand domains, 1,220 descriptors linked to an occupation) and their occupations; ONISEP training programmes, their occupations and their partial coverage (392 / 1,923 occupations) | Formacode V14, ROME ↔ Formacode, ONISEP (ODbL) |
-| **Explorer le marché du travail** | BMO 2026 recruitment intentions by FAP228 family and area: area comparisons, families, recruitment difficulties; values are minimums because of statistical secrecy | BMO 2026 |
+**Objectives:** build a reproducible ingestion pipeline from official open data, integrate the
+sources without inventing relationships, validate data quality at every layer, and serve the data
+through a read-only SQL search layer and a web application.
 
-BMO figures are never attached to ROME occupations, and the DARES correspondence (ROME **V3**) is
-loaded into Gold but not shown in the application (its licence is unconfirmed).
+> **Status:** complete and validated as an academic portfolio project that runs locally.
+> Six datasets are loaded from Bronze to Gold and exposed through 22 SQL query contracts and four
+> application pages. Final validation: 622 offline tests passed (2 skipped), 55 live Databricks
+> tests passed, and 325/325 SQL data-quality checks are `true` (see
+> [Testing & Validation](#testing--validation)).
 
 ## Screenshots
 
@@ -71,170 +71,202 @@ Captured from the application running locally on live Databricks data (interface
 All 12 screenshots, including filtered search, Formacode and ONISEP details, a family view and
 the mobile layout, are in [`docs/images/`](docs/images/).
 
+## Key Features
+
+| Page | What it offers | Data |
+|---|---|---|
+| **Rechercher un métier** — profession search | Search by occupation name, job title, ROME code or keyword (optionally in definitions and access texts); filters by domain, professional domain, *cadre* and regulated status; pagination; « Rechercher » button | ROME 4.0 v62 |
+| **Fiche métier** — occupation profile | Definition and access conditions, job titles, skills (savoir-faire, savoir-être, savoirs, work contexts) with core skills marked, RIASEC and transition indicators | ROME 4.0 v62 |
+| **Explorer les formations** — training exploration | The 14 Formacode grand domains and their descriptors with the linked occupations (many-to-many); ONISEP training programmes, their linked occupations and the ONISEP coverage (392 / 1,923 occupations) | Formacode V14, ROME ↔ Formacode, ONISEP |
+| **Explorer le marché du travail** — labour-market analysis | BMO 2026 recruitment intentions: comparison of regions and departments, ranking of FAP228 families in an area, one family across areas, families with the most projects judged difficult; charts and exact-figure tables | BMO 2026 |
+
+Search is case- and accent-insensitive, requires every word of the query, and ranks results by
+match tier only (for example, an exact code before a label match), never by a weight or score.
+Every page shows the source attribution and licence of the data it displays.
+
 ## Architecture
 
 ```
-Official open-data files ─► Python connectors (download, validate, stage as Parquet)
-   ─► Bronze ─► Silver ─► Gold ─► Search views + 22 SQL query contracts   (Databricks SQL, Delta)
-   ─► SearchClient (read-only, validated parameters) ─► Streamlit application
+ Official open-data files (France Travail, Centre Inffo, ONISEP, DARES)
+            │
+            ▼
+ Python connectors  ── download (or read manual downloads), validate, stage as Parquet + manifest
+            │           local, src/career_intelligence/ingestion/
+            ▼
+ Unity Catalog volume  bronze.landing
+            │
+            ▼                 Databricks Free Edition · Delta Lake · Databricks SQL (sql/)
+ ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌────────────────────────────────────┐
+ │  BRONZE  │ ─► │  SILVER  │ ─► │   GOLD   │ ─► │ SEARCH: 4 views + 22 query contracts│
+ │ raw text │    │ cleaned, │    │integrated│    │ (sql/search/queries/q01…q22)        │
+ │+ lineage │    │  typed   │    │  model   │    └──────────────────┬─────────────────┘
+ └──────────┘    └──────────┘    └──────────┘                       │ serverless SQL warehouse
+            each layer has a *_checks.sql file                      ▼
+                                              SearchClient (read-only, validated parameters)
+                                                                    │
+                                                                    ▼
+                                              Streamlit application (4 pages, localhost)
 ```
 
-- **Ingestion** (`src/career_intelligence/ingestion/`): local Python connectors download the
-  verified files (or read manually downloaded ones), validate them and write Bronze-ready Parquet
-  files with lineage columns, uploaded to a Unity Catalog volume.
-- **Bronze → Silver → Gold → Search**: Databricks SQL scripts in `sql/`, each with a check file
-  whose `check_*` columns must all be `true`. Transformations are written in **Databricks SQL**,
-  not PySpark.
-- **Search layer**: 4 views over Gold and 22 parameterized query contracts
-  (`sql/search/queries/`), described by the registry `career_intelligence.search.contracts`.
-- **Application**: `SearchClient` runs only the registered contract files, unchanged and
-  read-only, on a SQL warehouse; the Streamlit pages contain no SQL.
+- **All transformations are written in Databricks SQL**, not PySpark: every layer is built by SQL
+  scripts in `sql/`, each paired with a check file.
+- **Ingestion runs locally**: the connectors produce Bronze-ready Parquet files that are uploaded
+  to a Unity Catalog volume with the Databricks CLI.
+- **The application contains no SQL**: `SearchClient` (`src/career_intelligence/search/`) runs
+  only the registered contract files, byte-identical to the repository, after a read-only check,
+  with typed and validated parameters.
 
-See the full [project specification](docs/PROJECT_SPECIFICATION.md).
+## Data Sources
 
-## Tech stack
+| Dataset | Publisher | Role in the project | Licence | Shown in the app |
+|---|---|---|---|---|
+| ROME 4.0, version 62 ("26M10") | France Travail | Occupations, job titles, skills, texts, domains | Licence Ouverte (Etalab) | Yes |
+| BMO 2026 (Besoins en Main-d'Œuvre) | France Travail | Recruitment intentions by FAP2021 family and area | Licence Ouverte (Etalab) | Yes |
+| ROME ↔ Formacode V14 correspondence | France Travail | Occupation ↔ training-domain links (5,958, many-to-many) | Licence Ouverte (Etalab) | Yes |
+| Formacode® V14 thesaurus and grand domains | Centre Inffo | Official training-domain labels and hierarchy | Licence Ouverte 2.0 | Yes |
+| ONISEP Idéo open data (occupations, training sheets, initial training catalogue) | ONISEP | Training programmes and their links to occupations | **ODbL** | Yes |
+| DARES FAP 2021 nomenclature and ROME × qualification → FAP correspondence | DARES | FAP hierarchy; ROME **V3** × qualification → FAP341 | **Unconfirmed** | **No** |
 
-Python 3.12 · pandas · Databricks Free Edition (Unity Catalog, Delta Lake, serverless SQL
-warehouse) · Databricks SQL · databricks-sql-connector · Streamlit · pytest · Ruff
+Every dataset was verified (documentation, licence, test download, sha256 checksum) before its
+connector was written; the francetravail.io APIs were not used. **DARES data is loaded up to Gold
+but is not exposed in the application, because its reuse licence is unconfirmed.** Verification
+evidence, schemas and measured coverage: [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md).
 
-## Repository layout
+### Attribution obligations
 
-```
-career-intelligence/
-├── app/                      # Streamlit application
-│   ├── streamlit_app.py      # entry point and sidebar navigation
-│   ├── common.py             # data access through SearchClient, shared components, styles
-│   └── pages/                # rechercher_metier, fiche_metier, explorer_formations,
-│                             # explorer_marche_travail
-├── config/
-│   ├── settings.example.yaml # non-secret settings template
-│   └── sources.yaml          # verified data-source registry (URLs, checksums, licences)
-├── data/                     # local working data (git-ignored)
-├── docs/
-│   ├── PROJECT_SPECIFICATION.md
-│   └── DATA_SOURCES.md       # source verification log, Gold and Search documentation
-├── sql/                      # Databricks SQL: 00_setup, bronze, silver, gold, search
-│   └── search/queries/       # q01…q22 parameterized query contracts
-├── src/career_intelligence/  # Python package
-│   ├── config.py             # settings & secrets loading
-│   ├── ingestion/            # source connectors (Bronze-ready Parquet)
-│   ├── search/               # contracts registry, Databricks connection, SearchClient
-│   └── utils/                # logging
-├── tests/                    # pytest suite (tests/live: opt-in Databricks tests)
-├── .env.example              # environment-variable template
-├── pyproject.toml
-├── requirements.txt
-└── requirements-dev.txt
-```
+| Source | Licence | Obligation |
+|---|---|---|
+| France Travail — ROME 4.0, BMO, ROME ↔ Formacode correspondence | Licence Ouverte (Etalab) | Attribution to France Travail |
+| Centre Inffo — Formacode® V14 thesaurus | Licence Ouverte 2.0 | Attribute "Formacode® V14 – Centre Inffo" (Formacode® is a registered trademark) |
+| DARES — FAP 2021 nomenclature and ROME × qualification → FAP correspondence | **Unconfirmed** (no statement in the files; not assumed to be Licence Ouverte) | Attribute "Source : Dares, nomenclature des familles professionnelles FAP-2021"; confirm reuse conditions before any public release |
+| **ONISEP — Idéo open data** | **Open Database License (ODbL)** | Display **"Source : Onisep"**; any publicly used database derived from ONISEP data must be shared under **ODbL** (share-alike) |
 
-`notebooks/`, `scripts/` and `src/career_intelligence/transformation/` are empty placeholders
-from the initial structure: every transformation is a SQL script in `sql/`.
+All ONISEP-derived tables (Bronze and Silver) and the Gold view `v_metier_formation_onisep` carry the
+table properties `source.license = ODbL` and `source.attribution = Source : Onisep`, and the
+application displays "Source : Onisep" wherever ONISEP-derived data is shown.
 
-## Getting started (Windows / PowerShell)
+## Data Engineering Pipeline
 
-```powershell
-# 1. Create and activate the virtual environment (Python 3.12)
-py -3.12 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-
-# 2. Install dependencies (runtime + dev tools) and the package in editable mode
-python -m pip install -r requirements-dev.txt
-python -m pip install -e . --no-deps
-
-# 3. Create local configuration from the templates (both files are git-ignored)
-Copy-Item .env.example .env
-Copy-Item config\settings.example.yaml config\settings.yaml
-
-# 4. Run checks
-python -m pytest
-python -m ruff check .
-```
-
-> If script execution is blocked, run once:
-> `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
-
-Live tests of the search contracts (`tests/live`) are skipped unless configured. To run them,
-install the optional Databricks client and set the connection in the session only:
-
-```powershell
-python -m pip install -e ".[databricks]"
-$env:CAREER_INTELLIGENCE_LIVE = "1"
-$env:DATABRICKS_SERVER_HOSTNAME = "<your-workspace>.cloud.databricks.com"
-$env:DATABRICKS_HTTP_PATH = "/sql/1.0/warehouses/<warehouse-id>"
-$env:DATABRICKS_CONFIG_PROFILE = "career-intelligence"   # token from `databricks auth token`
-python -m pytest tests/live
-```
-
-## Ingestion
+### 1. Ingestion (local Python)
 
 | Dataset | Command | Output (git-ignored) |
 |---|---|---|
 | France Travail BMO | `python -m career_intelligence.ingestion.bmo [--year 2026] [--force]` | `data/raw/france_travail/bmo/<year>/bmo_<year>.xlsx` (raw, immutable)<br>`data/staging/france_travail/bmo/bmo_<year>.parquet` + `.manifest.json` |
+| France Travail ROME 4.0 | `python -m career_intelligence.ingestion.rome [--force]` | `data/raw/france_travail/rome/v<version>/rome_open_data_csv.zip` (kept per release)<br>`data/staging/france_travail/rome/v<version>/<entity>.parquet` (one per CSV) + `rome_v<version>.manifest.json` |
 | ONISEP (Fiches métiers, Fiches formations, Formations initiales) | `python -m career_intelligence.ingestion.onisep [--force]` | `data/raw/onisep/<YYYYMMDD>/` (3 files, kept per snapshot)<br>`data/staging/onisep/<YYYYMMDD>/<dataset>.parquet` + `onisep_<YYYYMMDD>.manifest.json` |
+| ROME ↔ Formacode V14 + Formacode V14 thesaurus | `python -m career_intelligence.ingestion.formacode [--force]` | `data/raw/formacode/<snapshot>/` (4 files, sha256-pinned)<br>`data/staging/formacode/<snapshot>/<table>.parquet` (3 tables) + manifest |
 | DARES ROME × qualification → FAP 2021 (manual download) | `python -m career_intelligence.ingestion.dares` (`--readme`: qualification classes from the XLSX `Lisez-moi` sheet) | reads `data/raw/dares/fap2021/<YYYYMMDD>/` (files downloaded in a browser, sha256-pinned in `config/sources.yaml`)<br>`data/staging/dares/fap2021/<YYYYMMDD>/rome_qualif_fap2021[_lisez_moi].parquet` + `.manifest.json` |
 | DARES FAP 2021 nomenclature (22 / 86 / 228 / 341) | `python -m career_intelligence.ingestion.fap2021 [--force]` | `data/raw/dares/fap2021_nomenclature/<snapshot>/` (sha256-pinned)<br>`data/staging/dares/fap2021_nomenclature/<snapshot>/dares_fap2021_nomenclature.parquet` + manifest |
-| ROME ↔ Formacode V14 + Formacode V14 thesaurus | `python -m career_intelligence.ingestion.formacode [--force]` | `data/raw/formacode/<snapshot>/` (4 files, sha256-pinned)<br>`data/staging/formacode/<snapshot>/<table>.parquet` (3 tables) + manifest |
-| France Travail ROME 4.0 | `python -m career_intelligence.ingestion.rome [--force]` | `data/raw/france_travail/rome/v<version>/rome_open_data_csv.zip` (kept per release)<br>`data/staging/france_travail/rome/v<version>/<entity>.parquet` (one per CSV) + `rome_v<version>.manifest.json` |
 
-Each run downloads the file only if it is missing (`--force` to refresh), reads every value as text,
-standardises column names, validates (structure, formats, keys, consistency), and writes a
-Bronze-ready Parquet file with lineage columns (`_source_*`, `_run_id`, `_ingested_at`) plus a JSON
-manifest (checksum, validation report, column profile). Download URLs come only from verified
-entries in `config/sources.yaml`.
+Each run downloads a file only if it is missing (`--force` to refresh), reads every value as text,
+standardises column names, validates structure, formats, keys and consistency, and writes a
+Parquet file with lineage columns (`_source_*`, `_run_id`, `_ingested_at`) and a JSON manifest
+(sha256 checksum, validation report, column profile). The DARES, FAP 2021 and Formacode
+connectors refuse any file whose checksum differs from the value pinned in `config/sources.yaml`;
+download URLs come only from verified entries in that registry.
 
-## Databricks (Free Edition)
+### 2. Bronze — raw, faithful copies
 
-Authentication uses the Databricks CLI with OAuth (no token in the repository):
+One Delta table per source file (39 tables), every value kept as text, with lineage columns.
+Statistical-secrecy markers (`*` in BMO) and source typos are preserved as published.
 
-```powershell
-databricks auth login --host https://<your-workspace>.cloud.databricks.com --profile career-intelligence
-```
+### 3. Silver — cleaned, typed, per source
 
-| Object | Name |
-|---|---|
-| Catalog | `career_intelligence` |
-| Schemas | `career_intelligence.bronze`, `career_intelligence.silver`, `career_intelligence.gold`, `career_intelligence.search` |
-| Volume | `career_intelligence.bronze.landing` → `/Volumes/career_intelligence/bronze/landing/` |
-| Tables | `bronze.bmo_2026` (raw text) → `silver.bmo_2026` (typed, cleaned)<br>`bronze.rome_<entity>` — 29 raw ROME 4.0 tables, one per source CSV<br>`silver.rome_*` — 24 clean ROME tables: 13 reference entities + 11 occupation links<br>`bronze.onisep_fiches_metiers`, `bronze.onisep_fiches_formations`, `bronze.onisep_formations_initiales` — raw ONISEP (ODbL)<br>`silver.onisep_*` — 8 ONISEP tables: occupations, training sheets, training catalogue + 5 relationships (incl. occupation → ROME)<br>`bronze.dares_rome_qualif_fap2021` — DARES ROME V3 × qualification → FAP341 (raw; qualification-dependent)<br>`bronze.dares_fap2021_nomenclature`, `bronze.dares_rome_qualif_fap2021_lisez_moi` → `silver.fap2021`, `silver.dares_qualification`, `silver.dares_rome_v3_fap341` — FAP 2021 hierarchy, qualification classes 0–9, ROME **V3** × qualification → FAP341 (not joined to ROME v62)<br>`bronze.rome_formacode_v14`, `bronze.formacode_v14_descripteurs`, `bronze.formacode_v14_grands_domaines` — ROME v62 ↔ Formacode V14 + official thesaurus<br>`silver.formacode`, `silver.formacode_grand_domaine`, `silver.formacode_terme_associe`, `silver.rome_metier_formacode` — Formacode thesaurus (official labels, hierarchy) + occupation → training-domain links<br>`gold.metier`, `gold.bmo_recrutement`, `gold.source_licence` + views `gold.v_metier_appellation`, `v_metier_competence`, `v_metier_domaine_formation`, `v_metier_formation_onisep` (ODbL), `v_fap`, `v_rome_v3_fap` — integrated model; BMO figures are minimums by FAP228 × geography, never linked to ROME v62 (see `docs/DATA_SOURCES.md` §6) |
+40 tables: types applied, whitespace normalised (including non-breaking spaces), statistical
+secrecy turned into `NULL` plus a `*_secret` flag, source codes kept verbatim, relationships
+extracted into link tables, unresolved or invalid codes flagged rather than dropped.
 
-Load steps (run SQL on the SQL warehouse, e.g. from the SQL editor):
+### 4. Gold — integration
+
+3 tables and 6 views built from Silver only: occupations with their job titles, skills, Formacode
+domains and ONISEP training; BMO recruitment aggregated by FAP228 family and area; the DARES
+correspondence kept separate. Links are never weighted or invented, and the licence and
+attribution of every Gold object are recorded in `gold.source_licence`.
+
+### 5. Search — serving layer
+
+4 views over Gold and 22 parameterized query contracts, described in the next section.
+
+### Data-quality validation
+
+Each layer has a companion `*_checks.sql` file (13 files) whose `check_*` columns must all be
+`true`: row counts against the source, key uniqueness, referential integrity, recomputation of
+derived values from the previous layer, and licence properties.
+
+<details>
+<summary>Load steps on Databricks (run on the SQL warehouse, in order)</summary>
 
 1. `sql/00_setup/01_catalog_schema_volume.sql` — catalog, schema, volume (idempotent)
-2. Upload the staged file:
+2. Upload the staged BMO file:
    `databricks fs cp data\staging\france_travail\bmo\bmo_2026.parquet dbfs:/Volumes/career_intelligence/bronze/landing/france_travail/bmo/2026/bmo_2026.parquet --profile career-intelligence`
-3. `sql/bronze/01_bmo_2026.sql` — create the Bronze Delta table
-4. `sql/bronze/01_bmo_2026_checks.sql` — verification queries with expected values
-5. `sql/silver/01_bmo_2026.sql` — Silver table: measures as `INT` (`NULL` + `*_secret` flag for statistical secrecy), label whitespace normalised (incl. non-breaking spaces)
-6. `sql/silver/01_bmo_2026_checks.sql` — every `check_*` column must be `true`
-7. ROME: upload the raw zip and the staging folder (commands in the header of `sql/bronze/02_rome.sql`), then run `sql/bronze/02_rome.sql` (29 tables) and `sql/bronze/02_rome_checks.sql`
-8. `sql/silver/02_rome.sql` (24 tables) and `sql/silver/02_rome_checks.sql` — every `check_*` must be `true`
-9. ONISEP: upload raw + staging folders (commands in the header of `sql/bronze/03_onisep.sql`), then run `sql/bronze/03_onisep.sql` and `sql/bronze/03_onisep_checks.sql`
-10. `sql/silver/03_onisep.sql` (8 tables; needs `silver.rome_metier`) and `sql/silver/03_onisep_checks.sql` — every `check_*` must be `true`
-11. DARES: download the two files manually (site behind a captcha) into `data/raw/dares/fap2021/<YYYYMMDD>/`, run the connector, upload (commands in the header of `sql/bronze/04_dares.sql`), then `sql/bronze/04_dares.sql` and `sql/bronze/04_dares_checks.sql`
-12. Formacode: run the connector, upload (commands in the header of `sql/bronze/05_formacode.sql`), then `sql/bronze/05_formacode.sql` and `sql/bronze/05_formacode_checks.sql` (needs `silver.rome_metier`)
-13. `sql/silver/04_formacode.sql` (4 tables) and `sql/silver/04_formacode_checks.sql` — every `check_*` must be `true`
-14. DARES FAP hierarchy + qualification readme: run both connectors, upload (commands in the header of `sql/bronze/06_dares_fap2021.sql`), then `sql/bronze/06_dares_fap2021.sql` and `sql/bronze/06_dares_fap2021_checks.sql`
-15. `sql/silver/05_dares.sql` (3 tables: `fap2021`, `dares_qualification`, `dares_rome_v3_fap341`) and `sql/silver/05_dares_checks.sql`
-16. `sql/gold/01_gold.sql` (schema `gold`: 3 tables + 6 views, built from Silver only) and `sql/gold/01_gold_checks.sql` — every `check_*` must be `true`
-17. `sql/search/01_search.sql` (schema `search`: 4 views over Gold) and `sql/search/01_search_checks.sql` — every `check_*` must be `true`
+3. `sql/bronze/01_bmo_2026.sql`, then `sql/bronze/01_bmo_2026_checks.sql`
+4. `sql/silver/01_bmo_2026.sql`, then `sql/silver/01_bmo_2026_checks.sql`
+5. ROME: upload the raw zip and the staging folder (commands in the header of `sql/bronze/02_rome.sql`), then `sql/bronze/02_rome.sql` (29 tables) and `sql/bronze/02_rome_checks.sql`
+6. `sql/silver/02_rome.sql` (24 tables) and `sql/silver/02_rome_checks.sql`
+7. ONISEP: upload raw + staging folders (commands in the header of `sql/bronze/03_onisep.sql`), then `sql/bronze/03_onisep.sql` and `sql/bronze/03_onisep_checks.sql`
+8. `sql/silver/03_onisep.sql` (8 tables; needs `silver.rome_metier`) and `sql/silver/03_onisep_checks.sql`
+9. DARES: download the two files manually (site behind a captcha) into `data/raw/dares/fap2021/<YYYYMMDD>/`, run the connector, upload (commands in the header of `sql/bronze/04_dares.sql`), then `sql/bronze/04_dares.sql` and `sql/bronze/04_dares_checks.sql`
+10. Formacode: run the connector, upload (commands in the header of `sql/bronze/05_formacode.sql`), then `sql/bronze/05_formacode.sql` and `sql/bronze/05_formacode_checks.sql` (needs `silver.rome_metier`)
+11. `sql/silver/04_formacode.sql` (4 tables) and `sql/silver/04_formacode_checks.sql`
+12. DARES FAP hierarchy + qualification readme: run both connectors, upload (commands in the header of `sql/bronze/06_dares_fap2021.sql`), then `sql/bronze/06_dares_fap2021.sql` and `sql/bronze/06_dares_fap2021_checks.sql`
+13. `sql/silver/05_dares.sql` (3 tables) and `sql/silver/05_dares_checks.sql`
+14. `sql/gold/01_gold.sql` (3 tables + 6 views) and `sql/gold/01_gold_checks.sql`
+15. `sql/search/01_search.sql` (4 views) and `sql/search/01_search_checks.sql`
 
-Every step is a Databricks SQL script run on the SQL warehouse; no PySpark code or local Spark is
-needed (the optional `[spark]` extra in `pyproject.toml` is unused).
+Every `check_*` column must be `true` before moving to the next step.
+</details>
 
-## Search layer
+## Data Model
 
-The application queries the warehouse only through 22 parameterized SQL contracts
-(`sql/search/queries/q01…q22_*.sql`, named parameters `:name`). The registry
-`career_intelligence.search.contracts` documents each one (parameters, output columns, key,
-sources, licence) and `bind()` validates the inputs:
+All objects live in the Unity Catalog catalog `career_intelligence`, volume
+`bronze.landing` → `/Volumes/career_intelligence/bronze/landing/`.
 
-```python
-from career_intelligence.search.contracts import bind
+| Schema | Objects | Content |
+|---|---|---|
+| `bronze` | 39 tables | `bmo_2026`; 29 `rome_*` (one per ROME CSV); 3 `onisep_*`; `rome_formacode_v14`, `formacode_v14_descripteurs`, `formacode_v14_grands_domaines`; `dares_rome_qualif_fap2021`, `dares_rome_qualif_fap2021_lisez_moi`, `dares_fap2021_nomenclature` |
+| `silver` | 40 tables | `bmo_2026`; 24 `rome_*` (13 reference entities + 11 occupation links); 8 `onisep_*` (occupations, training sheets, catalogue + 5 relationships); `formacode`, `formacode_grand_domaine`, `formacode_terme_associe`, `rome_metier_formacode`; `fap2021`, `dares_qualification`, `dares_rome_v3_fap341` |
+| `gold` | 3 tables + 6 views | see below |
+| `search` | 4 views + 22 query contracts | see below |
 
-query = bind("rechercher_metiers", q="électricien", page=1, page_size=20)
-cursor.execute(query.sql, parameters=query.parameters)  # databricks-sql-connector
-# or: {"statement": query.sql, "parameters": query.statement_parameters()}  (Statement Execution API)
+### Gold
+
 ```
+metier (ROME 4.0 v62, 1,923) ──< v_metier_appellation          job titles (14,330)
+                             ──< v_metier_competence           skills and work contexts (124,910 links)
+                             ──< v_metier_domaine_formation  >── Formacode V14 descriptors (5,958 links, many-to-many)
+                             ──< v_metier_formation_onisep   >── ONISEP training programmes (13,033 rows, ODbL)
+bmo_recrutement (FAP228 × area, 21,536 rows, minimums)   v_fap (FAP228 hierarchy)   [no link to metier]
+v_rome_v3_fap (DARES ROME V3 × qualification → FAP341, 5,320)                       [never joined to v62]
+source_licence (licence and attribution of every Gold object)
+```
+
+| Object | Type | Key | Notes |
+|---|---|---|---|
+| `metier` | table | `code_rome` | Occupation, domains, texts, RIASEC, transition indicators |
+| `v_metier_appellation` | view | `code_ogr_appellation` | Job titles of each occupation |
+| `v_metier_competence` | view | `code_rome, type_element, code_ogr_element` | Savoir-faire, savoir-être, savoirs, work contexts |
+| `v_metier_domaine_formation` | view | `code_rome, code_formacode` | Every ROME ↔ Formacode link, no weights |
+| `v_metier_formation_onisep` | view | `code_rome_source, identifiant_metier_onisep, type_lien, identifiant_formation` | ONISEP grain preserved; unresolved ROME codes kept with `code_rome = NULL` |
+| `bmo_recrutement` | table | `code_fap228, niveau_geo, code_geo` | Department, region and national levels; `*_minimum` measures, hidden-cell counts, `est_complet_*` flags |
+| `v_fap` | view | `code_fap228` | FAP 2021 hierarchy (DARES, licence unconfirmed) |
+| `v_rome_v3_fap` | view | `code_rome_v3, code_qualification` | DARES correspondence; ROME **V3**, not v62 |
+| `source_licence` | table | `objet_gold` | Licence, attribution and restrictions per Gold object |
+
+### Search
+
+| View | Key | Purpose |
+|---|---|---|
+| `v_metier_index` | `code_rome, champ, code_ogr_appellation` | Searchable texts of each occupation (code, name, job titles, definition, access text) |
+| `v_element_competence` | `type_element, code_ogr_element` | Skill elements with their number of occupations |
+| `v_domaine_formation` | `code_formacode` | The 1,220 Formacode descriptors linked to an occupation |
+| `v_zone_geo` | `niveau_geo, code_geo` | BMO areas: national, 18 regions, 101 departments |
+
+The 22 query contracts (`sql/search/queries/q01…q22_*.sql`) are registered in
+`career_intelligence.search.contracts`, which records each one's parameters, output columns, key,
+sources and licence; `bind()` validates the inputs. The application uses 15 of them; the others
+(`rechercher_competences`, `metiers_par_competence`, `domaines_formation_metier`,
+`formations_onisep_metier`, `rechercher_fap`, `rechercher_rome_v3`, `licences`) are available but
+have no page.
 
 | Search need | Contracts |
 |---|---|
@@ -247,73 +279,188 @@ cursor.execute(query.sql, parameters=query.parameters)  # databricks-sql-connect
 | DARES ROME **V3** × qualification → FAP | `rechercher_rome_v3` |
 | Licences and attributions | `licences` |
 
-Matching is case- and accent-insensitive, every word is required, and results are ranked only by
-match tier (`rang_pertinence`). BMO figures are never linked to ROME occupations. Details:
-`docs/DATA_SOURCES.md` §7.
+```python
+from career_intelligence.search.contracts import bind
 
-## Lancer l'application
+query = bind("rechercher_metiers", q="électricien", page=1, page_size=20)
+cursor.execute(query.sql, parameters=query.parameters)  # databricks-sql-connector
+```
 
-The Streamlit application (French) has four pages — « Rechercher un métier », « Fiche métier »,
-« Explorer les formations » and « Explorer le marché du travail » (see [Features](#features)). It
-queries Databricks only through the search contracts; credentials stay on the server.
+Full layer documentation (decisions, row counts, rules): [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md)
+§6–§7.
 
-1. Install the Databricks client: `python -m pip install -e ".[databricks]"`
-2. Log in once with the CLI (the token is obtained in memory, never stored by the app):
-   `databricks auth login --host https://<your-workspace>.cloud.databricks.com --profile career-intelligence`
-3. In `.env` (git-ignored), set `DATABRICKS_CONFIG_PROFILE`, `DATABRICKS_SERVER_HOSTNAME`
-   (workspace host without `https://`) and `DATABRICKS_WAREHOUSE_ID` (see `.env.example`).
-4. From the project root: `streamlit run app/streamlit_app.py --server.address localhost`
-   (opens http://localhost:8501). Keep `--server.address localhost`: without it Streamlit also
-   listens on the network, and every query runs with your Databricks login.
+## Technology Stack
 
-## Configuration & secrets
+| Area | Technologies |
+|---|---|
+| Language | Python 3.12 |
+| Ingestion | `requests`, pandas, `openpyxl` and `xlrd` (Excel files), `pyarrow` (Parquet) |
+| Data platform | Databricks Free Edition: Unity Catalog, Delta Lake, serverless SQL warehouse |
+| Transformations | Databricks SQL (`sql/`) |
+| Data access | `databricks-sql-connector` (optional extra `databricks`), Databricks CLI (OAuth login, file upload) |
+| Application | Streamlit |
+| Configuration | PyYAML, `python-dotenv` |
+| Quality | pytest, Ruff |
 
-- Non-secret settings: `config/settings.yaml` (copied from the example).
-- Secrets: none are stored. The application and the live tests authenticate with the Databricks
-  CLI OAuth login (short-lived token kept in memory); `.env` holds only the workspace host,
-  SQL warehouse id and CLI profile name.
-- `.env`, `config/settings.yaml`, `.databrickscfg` and `.streamlit/secrets.toml` are git-ignored.
-  **Never commit credentials.**
+Declared but **unused**: the optional extra `spark` in `pyproject.toml` (`pyspark`, `delta-spark`).
+No PySpark code exists in the project.
 
-## Data sources
+## Repository Structure
 
-Six datasets are loaded, all from official publishers: ROME 4.0 v62 (France Travail), BMO 2026
-(France Travail), ROME ↔ Formacode V14 correspondence (France Travail) and Formacode V14 thesaurus
-(Centre Inffo), ONISEP Idéo open data, and DARES FAP 2021 (nomenclature and ROME V3 × qualification
-correspondence). Each was verified (documentation, licence, test download, checksum) before its
-connector was written; the francetravail.io APIs were not used. Details:
-[docs/DATA_SOURCES.md](docs/DATA_SOURCES.md).
+```
+career-intelligence/
+├── app/                        # Streamlit application
+│   ├── streamlit_app.py        # entry point and sidebar navigation
+│   ├── common.py               # data access through SearchClient, shared components, styles
+│   └── pages/                  # rechercher_metier, fiche_metier, explorer_formations,
+│                               # explorer_marche_travail
+├── .streamlit/config.toml      # application theme
+├── config/
+│   ├── settings.example.yaml   # non-secret settings template
+│   └── sources.yaml            # verified data-source registry (URLs, checksums, licences)
+├── data/                       # local raw and staging files (git-ignored, README only)
+├── docs/
+│   ├── PROJECT_SPECIFICATION.md
+│   ├── DATA_SOURCES.md         # source verification log, Gold and Search documentation
+│   └── images/                 # README screenshots
+├── sql/                        # Databricks SQL: 00_setup, bronze, silver, gold, search
+│   └── search/queries/         # q01…q22 parameterized query contracts
+├── src/career_intelligence/    # Python package
+│   ├── config.py               # settings and environment loading
+│   ├── ingestion/              # six source connectors + HTTP helper
+│   ├── search/                 # contracts registry, Databricks connection, SearchClient
+│   └── utils/                  # logging
+├── tests/                      # pytest suite (tests/live: opt-in Databricks tests)
+├── .env.example                # environment-variable template
+├── pyproject.toml
+├── requirements.txt
+└── requirements-dev.txt
+```
 
-## Roadmap
+`notebooks/`, `scripts/` and `src/career_intelligence/transformation/` are **empty placeholders**
+from the initial project structure: every transformation is a SQL script in `sql/`.
 
-0. ✅ Repository initialisation
-1. ✅ Data-source verification
-2. ✅ Databricks workspace setup (catalog, schemas, volume)
-3. ✅ Bronze connectors and tables
-4. ✅ Silver transformations & quality checks
-5. ✅ Gold integrated model & SQL views
-6. ✅ Search layer & Streamlit application (four pages)
-7. ✅ Final integration, validation & documentation
+## Installation & Configuration
 
-Not implemented by decision: DARES qualification page (licence unconfirmed), public deployment
-(Databricks Free Edition terms), BMO figures per ROME occupation. See
+**Prerequisites:** Windows with PowerShell, Python 3.12, the
+[Databricks CLI](https://docs.databricks.com/aws/en/dev-tools/cli/install), and a Databricks
+workspace (Free Edition) where the pipeline has been loaded (see
+[Data Engineering Pipeline](#data-engineering-pipeline)).
+
+```powershell
+# 1. Create and activate the virtual environment (Python 3.12)
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+
+# 2. Install the dependencies, the package and the Databricks SQL client
+python -m pip install -r requirements-dev.txt
+python -m pip install -e ".[databricks]"
+
+# 3. Create the local configuration from the templates (both files are git-ignored)
+Copy-Item .env.example .env
+Copy-Item config\settings.example.yaml config\settings.yaml
+```
+
+> If script execution is blocked, run once:
+> `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+
+**Databricks authentication** uses the Databricks CLI OAuth login; no token is stored in the
+repository or in `.env`:
+
+```powershell
+databricks auth login --host https://<your-workspace>.cloud.databricks.com --profile career-intelligence
+```
+
+**`.env`** holds only non-secret workspace settings:
+
+| Variable | Value |
+|---|---|
+| `DATABRICKS_CONFIG_PROFILE` | the CLI profile name (template: `career-intelligence`) |
+| `DATABRICKS_SERVER_HOSTNAME` | workspace host without `https://` |
+| `DATABRICKS_WAREHOUSE_ID` | SQL warehouse id (or `DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/<id>`) |
+
+`.env`, `config/settings.yaml`, `.databrickscfg` and `.streamlit/secrets.toml` are git-ignored.
+**Never commit credentials.**
+
+## Running the Application
+
+From the project root:
+
+```powershell
+.\.venv\Scripts\python.exe -m streamlit run app\streamlit_app.py --server.address localhost
+```
+
+The application opens at http://localhost:8501. It runs **locally only** and needs the configured
+Databricks workspace with the loaded tables: every page queries the SQL warehouse through the
+search contracts, using the developer's CLI login (the short-lived OAuth token is kept in memory
+and never stored). Keep `--server.address localhost`: without it Streamlit also listens on the
+network, and every query would run with your Databricks login. The first query after the
+warehouse has been idle can take some time while it starts; results are then cached for an hour.
+
+## Testing & Validation
+
+```powershell
+python -m pytest              # offline suite
+python -m ruff check .
+python -m ruff format --check .
+python -m pip check
+```
+
+| Check | Result (2026-11-10) | What it covers |
+|---|---|---|
+| Offline tests (pytest) | **622 passed, 2 skipped** | Connectors on local fixtures; static guards on the Gold and Search SQL; query-contract registry and parameter validation; `SearchClient` error handling and secret redaction; the four Streamlit pages run with a fake executor (search, filters, pagination, empty results, errors, attribution) |
+| Skipped tests | 2 | The two opt-in live suites, skipped unless configured |
+| Live Databricks tests | **55 passed** | Every contract against the SQL warehouse (columns, key uniqueness, licence columns), matching and pagination, relationship counts compared with Gold, BMO minimum semantics, authentication and read-only execution |
+| SQL data-quality checks | **325 / 325 `check_*` true** | The 13 `*_checks.sql` files, from Bronze to Search |
+| Ruff | `ruff check` clean; `ruff format --check`: 43 files formatted | Lint and formatting |
+| `pip check` | No broken requirements | Installed dependency consistency |
+
+To run the live suites, install the `databricks` extra and set the connection in the session:
+
+```powershell
+$env:CAREER_INTELLIGENCE_LIVE = "1"
+$env:DATABRICKS_SERVER_HOSTNAME = "<your-workspace>.cloud.databricks.com"
+$env:DATABRICKS_HTTP_PATH = "/sql/1.0/warehouses/<warehouse-id>"
+$env:DATABRICKS_CONFIG_PROFILE = "career-intelligence"   # token from `databricks auth token`
+python -m pytest tests/live
+```
+
+These results validate the implementation and the loaded data at that date. They do not cover
+visual rendering in browsers or performance under load.
+
+## Limitations, Scope & Licence
+
+**Platform and deployment**
+
+- The project runs on **Databricks Free Edition**, and the application runs **locally only**,
+  with the developer's Databricks login.
+- **There is no public deployment.** Free Edition is for personal, non-commercial use and its
+  acceptable-use policy forbids giving third parties access.
+- Free Edition compute quotas and the stopped-when-idle SQL warehouse can make queries slow or
+  temporarily unavailable.
+
+**Data**
+
+- **BMO figures are minimums**: France Travail hides small values for statistical secrecy, so each
+  figure is the sum of the published cells. Fully hidden values and family × area pairs absent
+  from the survey are shown as such, never as zero, and no difficulty rate is calculated.
+- **BMO is published by FAP228 occupational family and is never linked directly to ROME 4.0 v62
+  occupations.**
+- **ROME V3** (used by the DARES correspondence) is kept distinct from **ROME 4.0 v62** and never
+  joined to it.
+- **DARES data is not exposed** in the application, because its licence is unconfirmed.
+- **ONISEP coverage is partial**: 392 of the 1,923 ROME occupations have at least one ONISEP
+  training link.
+- Formacode exploration covers the **1,220 descriptors linked to at least one occupation** (out of
+  2,775 in the thesaurus).
+- There are no machine-learning models, recommendations or job advertisements.
+
+The scope decisions behind these limits are documented in
 [docs/PROJECT_SPECIFICATION.md](docs/PROJECT_SPECIFICATION.md) §6.
 
-## License
+**Licence**
 
-Proprietary — All Rights Reserved (academic portfolio project). No licence is granted to copy,
-modify or redistribute the code. Each external data source remains subject to its own licence and
-terms of use.
-
-### Data attribution
-
-| Source | Licence | Obligation |
-|---|---|---|
-| France Travail — ROME 4.0, BMO, ROME ↔ Formacode correspondence | Licence Ouverte (Etalab) | Attribution to France Travail |
-| Centre Inffo — Formacode® V14 thesaurus | Licence Ouverte 2.0 | Attribute "Formacode® V14 – Centre Inffo" (Formacode® is a registered trademark) |
-| DARES — FAP 2021 nomenclature and ROME × qualification → FAP correspondence | **Unconfirmed** (no statement in the files; not assumed to be Licence Ouverte) | Attribute "Source : Dares, nomenclature des familles professionnelles FAP-2021"; confirm reuse conditions before any public release |
-| **ONISEP — Idéo open data** | **Open Database License (ODbL)** | Display **"Source : Onisep"**; any publicly used database derived from ONISEP data must be shared under **ODbL** (share-alike) |
-
-All ONISEP-derived tables (Bronze and Silver) and the Gold view `v_metier_formation_onisep` carry the table properties
-`source.license = ODbL` and `source.attribution = Source : Onisep`. The Streamlit application
-must display "Source : Onisep" wherever ONISEP-derived data is shown.
+The code is **Proprietary — All Rights Reserved** (academic portfolio project). No licence is
+granted to copy, modify or redistribute it. Each data source remains subject to its own licence
+and terms of use; the attribution obligations are listed under
+[Attribution obligations](#attribution-obligations) and must be preserved.
