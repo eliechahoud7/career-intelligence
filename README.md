@@ -8,7 +8,7 @@ Streamlit application.
 
 > **Status:** complete and validated as an academic portfolio project, run locally. Six official
 > datasets are loaded from Bronze to Gold, exposed by a SQL search layer of 22 query contracts and
-> used by four application pages. 619 offline tests and 55 live Databricks tests pass, and every
+> used by four application pages. 621 offline tests and 55 live Databricks tests pass, and every
 > data-quality check (`check_*`) of the SQL check files is `true`.
 
 ## Features
