@@ -97,10 +97,10 @@ page, once results are listed).
  Unity Catalog volume  bronze.landing
             │
             ▼                 Databricks Free Edition · Delta Lake · Databricks SQL (sql/)
- ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌─────────────────────────────────────┐
- │  BRONZE  │ ─► │  SILVER  │ ─► │   GOLD   │ ─► │ SEARCH: 4 views + 22 query contracts│
- │ raw text │    │ cleaned, │    │integrated│    │ (sql/search/queries/q01…q22)        │
- │+ lineage │    │  typed   │    │  model   │    └──────────────────┬──────────────────┘
+ ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────────────────────────────────┐
+ │  BRONZE  │ ─► │  SILVER  │ ─► │   GOLD   │ ─► │ SEARCH: 4 views + 22 query contracts │
+ │ raw text │    │ cleaned, │    │integrated│    │ (sql/search/queries/q01…q22)         │
+ │+ lineage │    │  typed   │    │  model   │    └──────────────────┬───────────────────┘
  └──────────┘    └──────────┘    └──────────┘                       │ serverless SQL warehouse
             each layer has a *_checks.sql file                      ▼
                                               SearchClient (read-only, validated parameters)
