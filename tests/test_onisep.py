@@ -1,4 +1,9 @@
-"""Tests for the ONISEP connector (offline: synthetic snapshot, no network)."""
+"""Tests for the ONISEP connector (offline: synthetic snapshot, no network).
+
+All fixture records are SYNTHETIC: identifiers (MET.9000x, FOR.9000x), codes, labels and
+URLs are invented test values that only follow the formats the connector expects. They are
+not excerpts of the ONISEP datasets.
+"""
 
 from __future__ import annotations
 
@@ -15,17 +20,17 @@ from career_intelligence.ingestion import onisep
 
 METIERS_XML = """<?xml version="1.0" encoding="UTF-8"?><metiers xmlns:exsl="http://exslt.org/common">
     <metier>
-        <identifiant>MET.579</identifiant>
-        <nom_metier>gardien/ne de police municipale</nom_metier>
+        <identifiant>MET.90001</identifiant>
+        <nom_metier>métier synthétique un/une</nom_metier>
         <romesV3>
-            <romeV3>K1707</romeV3>
+            <romeV3>N9901</romeV3>
         </romesV3>
-        <competences><![CDATA[<h5>Sens</h5><p>Contact &amp; écoute</p>]]></competences>
+        <competences><![CDATA[<h5>Test</h5><p>Compétence &amp; essai</p>]]></competences>
         <metiers_associes/>
     </metier>
     <metier>
-        <identifiant>MET.69</identifiant>
-        <nom_metier>accessoiriste</nom_metier>
+        <identifiant>MET.90002</identifiant>
+        <nom_metier>métier synthétique deux</nom_metier>
         <romesV3/>
         <competences/>
         <metiers_associes/>
@@ -34,22 +39,22 @@ METIERS_XML = """<?xml version="1.0" encoding="UTF-8"?><metiers xmlns:exsl="http
 
 FORMATIONS_XML = """<?xml version="1.0" encoding="UTF-8"?><formations>
     <formation>
-        <identifiant>FOR.10000</identifiant>
-        <libelle_complet>TP tailleur de pierre</libelle_complet>
+        <identifiant>FOR.90001</identifiant>
+        <libelle_complet>formation synthétique un</libelle_complet>
         <metiers_formation>
             <metier>
-                <id>MET.579</id>
-                <nom_metier>gardien/ne</nom_metier>
+                <id>MET.90001</id>
+                <nom_metier>métier synthétique</nom_metier>
             </metier>
         </metiers_formation>
-        <poursuites_etudes><poursuite id="7">BP</poursuite></poursuites_etudes>
+        <poursuites_etudes><poursuite id="7">poursuite fictive</poursuite></poursuites_etudes>
     </formation>
 </formations>"""
 
 CSV_TEXT = (
     "code NSF;libellé formation principal;code RNCP;URL et ID Onisep;domaine/sous-domaine\n"
-    "211;conseiller commercial;42066;https://www.onisep.fr/http/redirection/formation/slug/FOR.10000;agro\n"
-    "232;tailleur de pierre;;https://www.onisep.fr/http/redirection/formation/slug/FOR.12623;bâtiment\n"
+    "901;formation synthétique un;99901;https://onisep.example/formation/slug/FOR.90001;domaine\n"
+    "902;formation synthétique deux;;https://onisep.example/formation/slug/FOR.90002;thème é\n"
 )
 
 
@@ -86,9 +91,9 @@ def test_xml_text_and_fragments(snapshot: Path) -> None:
     ]
     assert s.source_records == 2 and len(f) == 2
     assert s.xml_columns == ["romesV3"]  # only tags that have child elements somewhere
-    assert ET.fromstring(f.loc[0, "romesV3"]).findtext("romeV3") == "K1707"
+    assert ET.fromstring(f.loc[0, "romesV3"]).findtext("romeV3") == "N9901"
     assert f.loc[1, "romesV3"] == "<romesV3 />"  # empty complex element kept as XML
-    assert f.loc[0, "competences"] == "<h5>Sens</h5><p>Contact &amp; écoute</p>"
+    assert f.loc[0, "competences"] == "<h5>Test</h5><p>Compétence &amp; essai</p>"
     assert f.loc[1, "competences"] == ""  # empty text element -> ''
 
 
@@ -100,7 +105,7 @@ def test_xml_attributes_preserved(snapshot: Path) -> None:
 
 def test_repeated_top_level_tag_is_rejected(tmp_path: Path) -> None:
     xml = METIERS_XML.replace(
-        "<nom_metier>accessoiriste</nom_metier>",
+        "<nom_metier>métier synthétique deux</nom_metier>",
         "<nom_metier>a</nom_metier><nom_metier>b</nom_metier>",
     )
     snap = make_snapshot(tmp_path / "raw", metiers=xml)
@@ -121,7 +126,7 @@ def test_csv_headers_normalised_values_kept(snapshot: Path) -> None:
     ]
     assert s.column_mapping["libellé formation principal"] == "libelle_formation_principal"
     assert s.frame.loc[1, "code_rncp"] == ""  # empty kept as published
-    assert s.frame.loc[1, "domaine_sous_domaine"] == "bâtiment"  # BOM stripped, UTF-8 kept
+    assert s.frame.loc[1, "domaine_sous_domaine"] == "thème é"  # BOM stripped, UTF-8 kept
     assert s.source_records == 2
 
 
@@ -140,19 +145,19 @@ def test_valid_snapshot_passes(snapshot: Path) -> None:
 
 
 def test_duplicate_identifier_is_an_error(tmp_path: Path) -> None:
-    xml = METIERS_XML.replace("MET.69", "MET.579")
+    xml = METIERS_XML.replace("MET.90002", "MET.90001")
     report = onisep.validate(onisep.read_snapshot(make_snapshot(tmp_path / "raw", metiers=xml)))
     assert any("fiches_metiers: 1 duplicate identifiers" in e for e in report.errors)
 
 
 def test_malformed_identifier_is_an_error(tmp_path: Path) -> None:
-    xml = METIERS_XML.replace("MET.69", "69")
+    xml = METIERS_XML.replace("MET.90002", "90002")
     report = onisep.validate(onisep.read_snapshot(make_snapshot(tmp_path / "raw", metiers=xml)))
     assert any("without a" in e for e in report.errors)
 
 
 def test_csv_row_without_for_id_is_an_error(tmp_path: Path) -> None:
-    csv_text = CSV_TEXT + "999;sans id;;https://www.onisep.fr/autre;x\n"
+    csv_text = CSV_TEXT + "903;sans id;;https://onisep.example/autre;x\n"
     report = onisep.validate(
         onisep.read_snapshot(make_snapshot(tmp_path / "raw", csv_text=csv_text))
     )

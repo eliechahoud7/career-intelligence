@@ -1,4 +1,9 @@
-"""Tests for the DARES FAP 2021 nomenclature connector (offline, synthetic CSV)."""
+"""Tests for the DARES FAP 2021 nomenclature connector (offline, synthetic CSV).
+
+All fixture rows are SYNTHETIC: the codes (domains Y and Z, e.g. Y9Y01a) and labels are
+invented test values that only follow the official code formats and hierarchy. They are not
+excerpts of the DARES nomenclature.
+"""
 
 from __future__ import annotations
 
@@ -13,11 +18,11 @@ import pytest
 from career_intelligence.ingestion import fap2021
 
 HEADER = ";".join(fap2021.EXPECTED_HEADER)
+DOMAIN_Y = "Y;Domaine fictif Y, accentué;Y9Y;Famille Y9Y;Y9Y01;Groupe Y9Y01"
 ROWS = [
-    "A;Agriculture, marine, pêche;A0X;Agriculteurs;A0X41;Eleveurs;A0X41c;Eleveurs de lapins",
-    "A;Agriculture, marine, pêche;A0X;Agriculteurs;A0X41;Eleveurs;A0X41d;Eleveurs d'ovins",
-    "Q;Banque et assurances;QAX;Employés banque;QAX01;Employés de la banque;QAX01;"
-    "Employés de la banque",
+    f"{DOMAIN_Y};Y9Y01a;Sous-groupe synthétique Y9Y01a",
+    f"{DOMAIN_Y};Y9Y01b;Sous-groupe synthétique Y9Y01b",
+    "Z;Domaine synthétique Z;Z9Z;Famille Z9Z;Z9Z01;Groupe Z9Z01;Z9Z01;Groupe Z9Z01",
 ]
 
 
@@ -54,8 +59,8 @@ def test_read_keeps_values_and_renames_headers(tmp_path: Path) -> None:
         "libelle_fap_341",
     ]
     assert mapping["Intitulé FAP 341"] == "libelle_fap_341"
-    assert frame.loc[2, "code_fap_341"] == "QAX01"  # FAP341 identical to its FAP228
-    assert frame.loc[0, "libelle_fap_22"] == "Agriculture, marine, pêche"  # UTF-8, BOM stripped
+    assert frame.loc[2, "code_fap_341"] == "Z9Z01"  # FAP341 identical to its FAP228
+    assert frame.loc[0, "libelle_fap_22"] == "Domaine fictif Y, accentué"  # UTF-8, BOM stripped
 
 
 def test_unexpected_header_is_rejected(tmp_path: Path) -> None:
@@ -82,12 +87,12 @@ def test_valid_hierarchy_passes(tmp_path: Path) -> None:
     [
         ([*ROWS, ROWS[0]], "code_fap_341: 1 duplicates"),
         (
-            ["A;Agriculture, marine, pêche;A0X;Agriculteurs;A0X41;Eleveurs;a0x41c;x"],
+            [f"{DOMAIN_Y};y9y01a;x"],
             "code_fap_341: 1 values not matching",
         ),
-        (["A;Agriculture, marine, pêche;A0X;Agriculteurs;A0X41;Eleveurs;A0X41c;"], "empty field"),
+        ([f"{DOMAIN_Y};Y9Y01a;"], "empty field"),
         (
-            [*ROWS, "A;Autre libellé;A0X;Agriculteurs;A0X41;Eleveurs;A0X41e;x"],
+            [*ROWS, "Y;Autre libellé;Y9Y;Famille Y9Y;Y9Y01;Groupe Y9Y01;Y9Y01c;x"],
             "code_fap_22: up to 2 different labels",
         ),
     ],
@@ -102,7 +107,7 @@ def test_structural_errors(tmp_path: Path, rows, message) -> None:
 def test_code_with_two_official_parents_is_an_error(tmp_path: Path) -> None:
     write(tmp_path / "fap.csv")
     frame, _, _ = fap2021.read(tmp_path / "fap.csv")
-    conflict = pd.concat([frame, frame.iloc[[0]].assign(code_fap_228="A0X42")])
+    conflict = pd.concat([frame, frame.iloc[[0]].assign(code_fap_228="Y9Y02")])
     errors, _ = fap2021.validate(conflict, len(conflict))
     assert any("code_fap_341: up to 2 different code_fap_228" in e for e in errors), errors
 
