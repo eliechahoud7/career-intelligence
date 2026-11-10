@@ -140,7 +140,7 @@ from the initial structure.
 | 4 | Silver transformations + data-quality checks | **Done** — `silver.bmo_2026`, 24 `silver.rome_*`, 8 `silver.onisep_*`, 4 Formacode and 3 DARES tables |
 | 5 | Gold integrated model + SQL views | **Done** — 3 tables (`metier`, `bmo_recrutement`, `source_licence`) + 6 views; see DATA_SOURCES.md §6 |
 | 6 | Search layer + Streamlit application | **Done** — 4 Search views + 22 query contracts; four pages: « Rechercher un métier », « Fiche métier », « Explorer les formations », « Explorer le marché du travail » |
-| 7 | Documentation, evaluation, final report | **Done** — final integration and validation (2026-11-10): 621 offline and 55 live tests pass, 325/325 `check_*` true |
+| 7 | Documentation, evaluation, final report | **Done** — final integration and validation (2026-11-10): 622 offline and 55 live tests pass, 325/325 `check_*` true |
 
 ### 6.2 Scope decisions and features not implemented
 
