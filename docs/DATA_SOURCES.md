@@ -464,7 +464,7 @@ Approved rules (D2–D10):
 ## 7. Search layer (Phase 14) — `career_intelligence.search`
 
 Views over Gold (nothing materialized) built by `sql/search/01_search.sql`, validated by
-`sql/search/01_search_checks.sql` (34 `check_*`), plus 17 parameterized query contracts in
+`sql/search/01_search_checks.sql` (34 `check_*`), plus 21 parameterized query contracts in
 `sql/search/queries/` described by the registry `src/career_intelligence/search/contracts.py`.
 
 | View | Grain / key | Rows (2026-11-09) | Reads | Licence |
@@ -502,6 +502,15 @@ has no ROME column, and its optional `minimum_desc` sort puts NULLs last (defaul
 `rechercher_rome_v3` (q16) uses `code_rome_v3` only (all 532 V3 code strings also exist in
 v62 — they must not be linked), exposes `code_fap228` / `bmo_disponible` but no BMO figure.
 `code_rome_parent` is not exposed.
+
+**Training exploration (Phase 15C, q18–q21).** `lister_grands_domaines_formation` and
+`parcourir_domaines_formation` cover only the **1,220** Formacode descriptors linked to at least
+one ROME occupation (all 14 grand domains are represented); the other 1,555 of the 2,775
+descriptors exist only in Silver and are not exposed. `metiers_par_formation_onisep` keeps the
+ONISEP grain (D7) and the unresolved codes (D6). `couverture_onisep` computes the ONISEP coverage
+from Gold: **392 / 1,923** ROME codes (≈ 20.4 %) have at least one ONISEP training link. The
+ONISEP source cites 407 ROME codes, but only 392 reach a training in Gold; the 6 unresolved ONISEP
+codes are counted separately and never added to the coverage (measured 2026-11-10).
 
 ## 8. Open items
 

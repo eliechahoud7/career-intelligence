@@ -95,6 +95,10 @@ SAMPLES = {
     "lister_zones_geo": {},
     "rechercher_rome_v3": {"code_rome_v3": "J1506"},
     "licences": {},
+    "lister_grands_domaines_formation": {},
+    "parcourir_domaines_formation": {"code_grand_domaine_formacode": "00109"},
+    "metiers_par_formation_onisep": {"identifiant_formation": "FOR.6052"},
+    "couverture_onisep": {},
 }
 
 
@@ -312,3 +316,64 @@ def test_search_schema_has_no_rome_bmo_column_mix(conn):
 def test_dares_licences_flagged(conn):
     _, rows = run(conn, "rechercher_fap", q="infirmier")
     assert {r["licence_confirmee"] for r in rows} == {False}
+
+
+# --- Phase 15C: training exploration -------------------------------------------------------
+
+
+def test_grands_domaines_formation_cover_linked_descriptors(conn):
+    rows = run_all(conn, "lister_grands_domaines_formation")
+    assert len(rows) == 14
+    assert sum(r["nb_descripteurs"] for r in rows) == scalar(
+        conn, "SELECT count(*) FROM career_intelligence.search.v_domaine_formation"
+    )
+    for r in rows:
+        assert r["nb_metiers"] == scalar(
+            conn,
+            "SELECT count(DISTINCT code_rome) FROM career_intelligence.gold."
+            f"v_metier_domaine_formation WHERE code_grand_domaine_formacode = "
+            f"'{r['code_grand_domaine_formacode']}'",
+        )
+
+
+def test_parcourir_domaines_formation_matches_search_view(conn):
+    rows = run_all(conn, "parcourir_domaines_formation", code_grand_domaine_formacode="00109")
+    assert {r["code_grand_domaine_formacode"] for r in rows} == {"00109"}
+    assert len(rows) == scalar(
+        conn,
+        "SELECT count(*) FROM career_intelligence.search.v_domaine_formation "
+        "WHERE code_grand_domaine_formacode = '00109'",
+    )
+
+
+def test_metiers_par_formation_onisep_keeps_grain_and_unresolved(conn):
+    rows = run_all(conn, "metiers_par_formation_onisep", identifiant_formation="FOR.6052")
+    assert len(rows) == scalar(
+        conn,
+        "SELECT count(*) FROM career_intelligence.gold.v_metier_formation_onisep "
+        "WHERE identifiant_formation = 'FOR.6052'",
+    )
+    unresolved = [r for r in rows if r["statut_code_rome"] == "non_resolu"]
+    assert unresolved and all(r["code_rome"] is None for r in unresolved)
+    assert all(r["libelle_rome"] is None for r in unresolved)
+    assert all(r["libelle_rome"] for r in rows if r["code_rome"] is not None)
+    assert {(r["licence"], r["attribution"][:15]) for r in rows} == {("ODbL", "Source : Onisep")}
+
+
+def test_couverture_onisep_matches_gold(conn):
+    _, rows = run(conn, "couverture_onisep")
+    (r,) = rows
+    assert r["nb_metiers_avec_formation"] == scalar(
+        conn,
+        "SELECT count(DISTINCT code_rome) FROM career_intelligence.gold.v_metier_formation_onisep",
+    )
+    assert r["nb_metiers_rome"] == scalar(
+        conn, "SELECT count(*) FROM career_intelligence.gold.metier"
+    )
+    assert r["nb_codes_rome_non_resolus"] == scalar(
+        conn,
+        "SELECT count(DISTINCT code_rome_source) FROM career_intelligence.gold."
+        "v_metier_formation_onisep WHERE statut_code_rome = 'non_resolu'",
+    )
+    # Never more than the 407 ROME codes cited by the ONISEP source (docs/DATA_SOURCES.md).
+    assert r["nb_metiers_avec_formation"] <= 407 < r["nb_metiers_rome"]

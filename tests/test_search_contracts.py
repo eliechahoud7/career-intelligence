@@ -74,10 +74,10 @@ IDS = [k.name for k in CONTRACTS]
 # --- Registry <-> files --------------------------------------------------------------------
 
 
-def test_seventeen_contracts_one_file_each():
-    assert len(CONTRACTS) == 17
+def test_twenty_one_contracts_one_file_each():
+    assert len(CONTRACTS) == 21
     assert sorted(k.file for k in CONTRACTS) == [f.name for f in QUERY_FILES]
-    assert [f.name[:3] for f in QUERY_FILES] == [f"q{i:02d}" for i in range(1, 18)]
+    assert [f.name[:3] for f in QUERY_FILES] == [f"q{i:02d}" for i in range(1, 22)]
 
 
 @pytest.mark.parametrize("contract", CONTRACTS, ids=IDS)
@@ -149,7 +149,12 @@ def test_lineage_column_present(contract):
 
 def test_onisep_isolation_and_attribution():
     users = {k.name for k in CONTRACTS if ONISEP in reads(sql_of(k)) | set(k.reads)}
-    assert users == {"rechercher_formations_onisep", "formations_onisep_metier"}
+    assert users == {
+        "rechercher_formations_onisep",
+        "formations_onisep_metier",
+        "metiers_par_formation_onisep",
+        "couverture_onisep",
+    }
     for name in users:
         k = c.get_contract(name)
         assert k.licence_object == "v_metier_formation_onisep"
@@ -352,3 +357,85 @@ def test_bind_rejects_invalid_pages(page, page_size):
 def test_fiche_metier_is_not_paginated():
     b = c.bind("fiche_metier", code_rome="J1506")
     assert set(b.parameters) == {"code_rome"}
+
+
+# --- Phase 15C: training exploration contracts ----------------------------------------------
+
+TRAINING = {
+    "lister_grands_domaines_formation": "v_metier_domaine_formation",
+    "parcourir_domaines_formation": "v_metier_domaine_formation",
+    "metiers_par_formation_onisep": "v_metier_formation_onisep",
+    "couverture_onisep": "v_metier_formation_onisep",
+}
+
+
+@pytest.mark.parametrize(("name", "licence_object"), TRAINING.items())
+def test_training_contracts_licence_and_separation(name, licence_object):
+    k = c.get_contract(name)
+    assert k.licence_object == licence_object
+    r = reads(sql_of(k))
+    if licence_object == "v_metier_domaine_formation":  # Formacode never mixed with ONISEP
+        assert ONISEP not in r
+    else:
+        assert not r & {"gold.v_metier_domaine_formation", "search.v_domaine_formation"}
+    assert not r & (BMO_FAP | ROME_V3)
+
+
+def test_grands_domaines_are_counts_over_linked_descriptors():
+    k = c.get_contract("lister_grands_domaines_formation")
+    code = code_only(sql_of(k))
+    assert "count(DISTINCT d.code_formacode)" in code and "count(DISTINCT d.code_rome)" in code
+    assert k.param_names == ("page_size", "offset")
+    assert c.bind(k.name).parameters == {"page_size": 20, "offset": 0}
+
+
+def test_parcourir_requires_grand_domain_and_keeps_links_unweighted():
+    b = c.bind("parcourir_domaines_formation", code_grand_domaine_formacode=" 00109 ")
+    assert b.parameters["code_grand_domaine_formacode"] == "00109"
+    assert "rang_pertinence" not in b.contract.columns  # browsing, not keyword ranking
+    with pytest.raises(ValueError, match="required"):
+        c.bind("parcourir_domaines_formation")
+
+
+def test_metiers_par_formation_keeps_onisep_grain_and_unresolved_codes():
+    k = c.get_contract("metiers_par_formation_onisep")
+    sql = sql_of(k)
+    code = code_only(sql)
+    assert "LEFT JOIN career_intelligence.gold.metier m ON m.code_rome = o.code_rome" in sql
+    assert "DISTINCT" not in code and "GROUP BY" not in code  # decision D7
+    assert {"statut_code_rome", "code_rome_source", "nom_metier_onisep"} <= set(k.columns)
+    assert k.key == c.get_contract("formations_onisep_metier").key
+    b = c.bind(k.name, identifiant_formation="FOR.1234", type_lien="formation_minimale_requise")
+    assert b.parameters["type_lien"] == "formation_minimale_requise"
+
+
+def test_couverture_onisep_counts_resolved_codes_only():
+    k = c.get_contract("couverture_onisep")
+    code = code_only(sql_of(k))
+    assert not k.paginated and k.param_names == ()
+    assert "count(DISTINCT code_rome) AS INT) AS nb_metiers_avec_formation" in code
+    assert "CASE WHEN statut_code_rome = '' THEN code_rome_source END" in code  # literal blanked
+    assert "FROM career_intelligence.gold.metier" in code
+    assert c.bind(k.name).parameters == {}
+
+
+@pytest.mark.parametrize(
+    ("name", "kwargs", "message"),
+    [
+        ("lister_grands_domaines_formation", {"code_grand_domaine_formacode": "00101"}, "unknown"),
+        ("parcourir_domaines_formation", {"code_grand_domaine_formacode": "   "}, "required"),
+        ("parcourir_domaines_formation", {"code_grand_domaine_formacode": 101}, "string"),
+        ("parcourir_domaines_formation", {"q": "info"}, "unknown"),
+        ("metiers_par_formation_onisep", {}, "required"),
+        (
+            "metiers_par_formation_onisep",
+            {"identifiant_formation": "F", "type_lien": "x"},
+            "not in",
+        ),
+        ("metiers_par_formation_onisep", {"code_rome": "J1506"}, "unknown"),
+        ("couverture_onisep", {"code_rome": "J1506"}, "unknown"),
+    ],
+)
+def test_training_contracts_reject_invalid_values(name, kwargs, message):
+    with pytest.raises(ValueError, match=message):
+        c.bind(name, **kwargs)

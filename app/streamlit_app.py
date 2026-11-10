@@ -4,14 +4,18 @@ Run from the project root:  streamlit run app/streamlit_app.py --server.address 
 """
 
 import streamlit as st
-from common import PROFILE_PAGE, SEARCH_PAGE, TITLE, apply_style, brand
+from common import PROFILE_PAGE, SEARCH_PAGE, TITLE, TRAINING_PAGE, apply_style, brand
 
 st.set_page_config(page_title=TITLE, page_icon=":material/insights:", layout="centered")
 apply_style()
 
 search = st.Page(SEARCH_PAGE, title="Rechercher un métier", icon=":material/search:", default=True)
+training = st.Page(
+    TRAINING_PAGE, title="Explorer les formations", icon=":material/school:", url_path="formations"
+)
 pages = [
     search,
+    training,
     st.Page(PROFILE_PAGE, title="Fiche métier", url_path="fiche", visibility="hidden"),
 ]
 
@@ -24,5 +28,7 @@ with st.sidebar:
         "appellations grâce aux données officielles de France Travail."
     )
     st.divider()
+    st.page_link(search, label="Rechercher un métier", icon=":material/search:")
+    st.page_link(training, label="Explorer les formations", icon=":material/school:")
 
 page.run()

@@ -648,6 +648,7 @@ APP_FILES = sorted(APP.rglob("*.py"))
 def test_app_files():
     assert [p.relative_to(APP).as_posix() for p in APP_FILES] == [
         "common.py",
+        "pages/explorer_formations.py",
         "pages/fiche_metier.py",
         "pages/rechercher_metier.py",
         "streamlit_app.py",
@@ -676,5 +677,13 @@ def test_only_registered_contracts_are_used():
         "fiche_metier",
         "appellations_metier",
         "competences_metier",
+        # Phase 15C — Explorer les formations
+        "lister_grands_domaines_formation",
+        "rechercher_domaines_formation",
+        "parcourir_domaines_formation",
+        "metiers_par_domaine_formation",
+        "couverture_onisep",
+        "rechercher_formations_onisep",
+        "metiers_par_formation_onisep",
     }
     assert used <= set(c.CONTRACTS)
