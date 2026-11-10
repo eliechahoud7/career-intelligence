@@ -130,6 +130,9 @@ _CSS = """
   font-weight: 600; color: #142B4A; white-space: normal; overflow: visible; text-overflow: clip;
 }
 .st-key-card-search input { font-size: 1.05rem; }
+@media (max-width: 640px) {
+  .st-key-btn-rechercher button { width: 100%; min-height: 2.75rem; }
+}
 </style>
 """
 

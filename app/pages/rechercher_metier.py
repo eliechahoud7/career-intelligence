@@ -78,6 +78,15 @@ with st.container(border=True, key="card-search"):
         max_chars=100,
         icon=":material/search:",
     )
+    # Explicit submit for mobile keyboards without a clear Enter key. Enter (or leaving the
+    # field) still submits as before; nothing runs while typing. Typed-but-not-yet-committed
+    # text is sent in the same run as the click, so the search uses the current query.
+    rechercher = st.button(
+        "Rechercher",
+        key="btn-rechercher",
+        type="primary",
+        icon=":material/search:",
+    )
     textes = st.checkbox(
         "Chercher aussi dans les textes",
         key="f_textes",
@@ -141,7 +150,8 @@ criteres = {
 }
 criteres = {k: v for k, v in criteres.items() if v}
 anciens = {k: v for k, v in qp.to_dict().items() if k != "page"}
-criteres_modifies = criteres != anciens  # a new query or filter always restarts at page 1
+# A new query or filter, or an explicit « Rechercher », always restarts at page 1.
+criteres_modifies = criteres != anciens or rechercher
 page = int(qp.get("page", "1")) if qp.get("page", "1").isdigit() and not criteres_modifies else 1
 st.query_params.from_dict({**criteres, **({"page": str(page)} if page > 1 else {})})
 st.session_state["derniere_recherche"] = st.query_params.to_dict()

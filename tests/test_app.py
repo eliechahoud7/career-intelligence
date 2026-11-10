@@ -219,7 +219,8 @@ def test_search_page_starts_without_query(fake):
     assert "Recherchez par nom de métier, code ROME ou mot-clé" in text_of(at)
     assert len(at.info) == 0 and "Saisissez" not in text_of(at)  # no prompt text
     assert at.text_input(key="f_q").placeholder == "ex. électricien, infirmier, M1805"
-    assert not at.button  # no results, so no pagination buttons yet
+    # Only the search button: no results, so no pagination buttons yet.
+    assert [b.label for b in at.button] == ["Rechercher"]
     assert [n for n, _ in executor.calls] == ["lister_domaines"]  # filters only, no search yet
 
 
@@ -420,6 +421,102 @@ def test_second_query_is_not_lost(fake):
     at.selectbox(key="f_gd").set_value("J").run()
     at.selectbox(key="f_gd").set_value("M").run()
     assert last_search(executor)["code_grand_domaine"] == "M"
+
+
+# --- « Rechercher » button (mobile keyboards without a clear Enter key) ---------------------
+
+
+def searches(executor: FakeExecutor) -> list[dict]:
+    return [p for n, p in executor.calls if n == "rechercher_metiers"]
+
+
+def test_search_button_is_primary_and_below_the_input(fake):
+    fake()
+    at = app().run()
+    btn = at.button(key="btn-rechercher")
+    assert btn.label == "Rechercher" and btn.proto.type == "primary"
+    assert not btn.disabled
+    card = at.main.get("flex_container")  # the search card holds the input and the button
+    assert any(
+        c.get("text_input") and any(b.key == "btn-rechercher" for b in c.get("button"))
+        for c in card
+    )
+
+
+def test_typing_does_not_search_until_button_clicked(fake):
+    # On mobile the query is typed without pressing Enter: nothing is searched until the
+    # button is clicked; the pending text is then sent with the click, in a single run.
+    executor = fake()
+    at = app().run()
+    at.text_input(key="f_q").set_value("infirmier")
+    assert searches(executor) == []
+    at.button(key="btn-rechercher").click().run()
+    assert not at.exception
+    assert len(searches(executor)) == 1 and last_search(executor)["q"] == "infirmier"
+    assert last_search(executor)["offset"] == 0
+    assert "25 métiers trouvés · Page 1 sur 2" in page_shown(at)
+    assert at.query_params["q"] == "infirmier"
+
+
+def test_search_button_uses_current_filters(fake):
+    executor = fake()
+    at = app().run()
+    at.selectbox(key="f_gd").set_value("J")
+    at.selectbox(key="f_dp").set_value("J15")
+    at.selectbox(key="f_cadre").set_value("N")
+    at.selectbox(key="f_regl").set_value("O")
+    at.checkbox(key="f_textes").check()
+    at.text_input(key="f_q").set_value("infirmier")
+    at.button(key="btn-rechercher").click().run()
+    assert not at.exception
+    params = last_search(executor)
+    assert params["q"] == "infirmier"
+    assert (params["code_grand_domaine"], params["code_domaine_professionnel"]) == ("J", "J15")
+    assert (params["emploi_cadre"], params["emploi_reglemente"]) == ("N", "O")
+    assert params["inclure_textes"] is True
+    expected = {"q": "infirmier", "gd": "J", "dp": "J15", "cadre": "N", "regl": "O", "textes": "1"}
+    assert {k: at.query_params[k] for k in expected} == expected
+
+
+def test_search_button_restarts_at_page_one(fake):
+    executor = fake(FakeExecutor({**DATA, "rechercher_metiers": metiers(45)}))
+    at = app(q="infirmier").run()
+    click(at, "Suivant")
+    assert "Page 2 sur 3" in page_shown(at)
+    common._query.clear()
+    at.button(key="btn-rechercher").click().run()
+    assert not at.exception
+    assert last_search(executor)["offset"] == 0 and last_search(executor)["q"] == "infirmier"
+    assert "Page 1 sur 3" in page_shown(at) and "page" not in at.query_params
+    click(at, "Suivant")  # pagination still works after a button search
+    assert "Page 2 sur 3" in page_shown(at) and at.query_params["page"] == "2"
+
+
+def test_search_button_with_new_query_after_pagination(fake):
+    executor = fake()
+    at = app(q="infirmier").run()
+    click(at, "Suivant")
+    at.text_input(key="f_q").set_value("électricien")
+    at.button(key="btn-rechercher").click().run()
+    assert last_search(executor)["q"] == "électricien" and last_search(executor)["offset"] == 0
+    assert "page" not in at.query_params
+
+
+def test_search_button_with_empty_query_does_not_search(fake):
+    executor = fake()
+    at = app().run()
+    at.text_input(key="f_q").set_value("   ")
+    at.button(key="btn-rechercher").click().run()
+    assert not at.exception
+    assert searches(executor) == [] and "q" not in at.query_params
+
+
+def test_enter_still_searches_without_button(fake):
+    executor = fake()
+    at = app().run()
+    at.text_input(key="f_q").input("infirmier").run()  # Enter / blur, no click
+    assert last_search(executor)["q"] == "infirmier"
+    assert not at.button(key="btn-rechercher").value
 
 
 def test_search_empty_result(fake):
