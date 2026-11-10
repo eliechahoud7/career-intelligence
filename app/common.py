@@ -81,6 +81,9 @@ def oui_non(value: Any) -> str:
 
 
 def attribution(licence: str, source: str) -> None:
+    # Some stored attributions already start with "Source :" (ONISEP: "Source : Onisep; …"):
+    # drop it so the prefix is not shown twice. Display only; stored values are unchanged.
+    source = re.sub(r"^\s*Source\s*:\s*", "", source)
     st.divider()
     st.caption(f":material/verified: Source : {plain(source)} — Licence : {plain(licence)}")
 

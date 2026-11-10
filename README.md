@@ -8,7 +8,7 @@ Streamlit application.
 
 > **Status:** complete and validated as an academic portfolio project, run locally. Six official
 > datasets are loaded from Bronze to Gold, exposed by a SQL search layer of 22 query contracts and
-> used by four application pages. Final validation: 621 offline tests passed (2 skipped: the
+> used by four application pages. Final validation: 622 offline tests passed (2 skipped: the
 > opt-in live suites), 55 live Databricks tests passed, and 325/325 SQL data-quality checks
 > (`check_*`) are `true`.
 
@@ -25,6 +25,51 @@ The Streamlit application (French) has four pages:
 
 BMO figures are never attached to ROME occupations, and the DARES correspondence (ROME **V3**) is
 loaded into Gold but not shown in the application (its licence is unconfirmed).
+
+## Screenshots
+
+Captured from the application running locally on live Databricks data (interface in French).
+
+<p align="center">
+  <img src="docs/images/01-recherche-metier.png" alt="Rechercher un métier: search results for « infirmier » with domain and status filters" width="860">
+  <br><em>Rechercher un métier — search by name, ROME code or keyword, with domain and status filters.</em>
+</p>
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/images/03-fiche-metier.png" alt="Fiche métier J1506: header, badges, counters and definition">
+      <br><em>Fiche métier — profile of a ROME 4.0 occupation (J1506).</em>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/images/04-fiche-competences.png" alt="Fiche métier J1506: skills tab with core skills marked">
+      <br><em>Fiche métier — skills, with core skills marked.</em>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/images/05-formations-domaines.png" alt="Explorer les formations: the 14 Formacode grand domains">
+      <br><em>Explorer les formations — the 14 Formacode grand domains (1,220 descriptors linked to an occupation).</em>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/images/08-formations-onisep-metiers.png" alt="Explorer les formations: an ONISEP programme and its ROME occupations">
+      <br><em>Explorer les formations — an ONISEP programme and its occupations (Source : Onisep, ODbL).</em>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/images/09-marche-territoires.png" alt="Explorer le marché du travail: reading guide and regional comparison chart">
+      <br><em>Explorer le marché du travail — BMO 2026 recruitment intentions by region (minimums).</em>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/images/11-marche-difficultes.png" alt="Explorer le marché du travail: families with the most difficult recruitment projects">
+      <br><em>Explorer le marché du travail — families with the most recruitment projects judged difficult (minimum counts).</em>
+    </td>
+  </tr>
+</table>
+
+All 12 screenshots, including filtered search, Formacode and ONISEP details, a family view and
+the mobile layout, are in [`docs/images/`](docs/images/).
 
 ## Architecture
 

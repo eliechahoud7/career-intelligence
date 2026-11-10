@@ -396,6 +396,19 @@ def test_onisep_attribution_separate_from_formacode(fake):
     assert "Onisep" not in formacode[0] and "Inffo" not in onisep[0]
 
 
+def test_onisep_attribution_prefix_not_duplicated(fake):
+    # Regression: the stored ONISEP attribution starts with "Source : Onisep"; the page used to
+    # show « Source : Source : Onisep ».
+    fake()
+    at = formations_page()
+    text = text_of(at)
+    assert "Source : Source" not in text
+    sources = [c.value for c in at.caption if c.value.startswith(":material/verified: Source")]
+    onisep = [c for c in sources if "Onisep" in c]
+    assert len(onisep) == 1 and onisep[0].count("Source :") == 1
+    assert "Source : Onisep; France Travail – ROME 4.0 — Licence : ODbL" in text
+
+
 def test_onisep_search_and_table(fake):
     executor = fake()
     at = formations_page()
