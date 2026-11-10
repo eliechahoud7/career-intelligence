@@ -82,7 +82,8 @@ the mobile layout, are in [`docs/images/`](docs/images/).
 
 Search is case- and accent-insensitive, requires every word of the query, and ranks results by
 match tier only (for example, an exact code before a label match), never by a weight or score.
-Every page shows the source attribution and licence of the data it displays.
+Where source data is displayed, the page shows its source attribution and licence (on the search
+page, once results are listed).
 
 ## Architecture
 
@@ -127,10 +128,12 @@ Every page shows the source attribution and licence of the data it displays.
 | ONISEP Idéo open data (occupations, training sheets, initial training catalogue) | ONISEP | Training programmes and their links to occupations | **ODbL** | Yes |
 | DARES FAP 2021 nomenclature and ROME × qualification → FAP correspondence | DARES | FAP hierarchy; ROME **V3** × qualification → FAP341 | **Unconfirmed** | **No** |
 
-Every dataset was verified (documentation, licence, test download, sha256 checksum) before its
-connector was written; the francetravail.io APIs were not used. **DARES data is loaded up to Gold
-but is not exposed in the application, because its reuse licence is unconfirmed.** Verification
-evidence, schemas and measured coverage: [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md).
+Before each connector was written, the source documentation and licence information were
+reviewed and a test download was checked (sha256 checksum); the francetravail.io APIs were not
+used. Reviewing a licence does not mean it was confirmed: **the DARES reuse licence remains
+unconfirmed, so DARES data is loaded up to Gold but is not exposed in the application.** Each
+source stays subject to its own licence and terms. Review evidence, schemas and measured
+coverage: [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md).
 
 ### Attribution obligations
 
