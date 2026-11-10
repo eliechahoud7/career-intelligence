@@ -149,8 +149,8 @@ install the optional extra: `python -m pip install -e ".[spark]"`.
 
 ## Search layer
 
-The application queries the warehouse only through 21 parameterized SQL contracts
-(`sql/search/queries/q01…q21_*.sql`, named parameters `:name`). The registry
+The application queries the warehouse only through 22 parameterized SQL contracts
+(`sql/search/queries/q01…q22_*.sql`, named parameters `:name`). The registry
 `career_intelligence.search.contracts` documents each one (parameters, output columns, key,
 sources, licence) and `bind()` validates the inputs:
 
@@ -169,7 +169,7 @@ cursor.execute(query.sql, parameters=query.parameters)  # databricks-sql-connect
 | Skills, knowledge, work contexts | `rechercher_competences`, `competences_metier`, `metiers_par_competence` |
 | Formacode training domains | `domaines_formation_metier`, `rechercher_domaines_formation`, `metiers_par_domaine_formation`, `lister_grands_domaines_formation`, `parcourir_domaines_formation` |
 | ONISEP programmes (ODbL — display "Source : Onisep") | `rechercher_formations_onisep`, `formations_onisep_metier`, `metiers_par_formation_onisep`, `couverture_onisep` |
-| BMO recruitment by FAP and area (minimums) | `rechercher_fap`, `recrutement_bmo`, `lister_zones_geo` |
+| BMO recruitment by FAP and area (minimums) | `rechercher_fap`, `recrutement_bmo`, `lister_zones_geo`, `synthese_zones_bmo` |
 | DARES ROME **V3** × qualification → FAP | `rechercher_rome_v3` |
 | Licences and attributions | `licences` |
 
@@ -181,7 +181,8 @@ match tier (`rang_pertinence`). BMO figures are never linked to ROME occupations
 
 The Streamlit application (French) currently offers profession search, the occupation profile
 (ROME 4.0 v62) and « Explorer les formations » (Formacode V14 training domains linked to
-occupations, and ONISEP training programmes with their partial coverage). It queries Databricks only through the search contracts; credentials stay on the
+occupations, and ONISEP training programmes with their partial coverage) and « Explorer le marché du travail »
+(BMO 2026 recruitment intentions by FAP228 family and area; minimums, no ROME link). It queries Databricks only through the search contracts; credentials stay on the
 server.
 
 1. Install the Databricks client: `python -m pip install -e ".[databricks]"`

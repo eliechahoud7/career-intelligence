@@ -255,7 +255,7 @@ def test_sidebar_navigation_and_search_page_unchanged(fake):
     at = AppTest.from_file(ENTRY, default_timeout=30).run()
     assert not at.exception
     links = page_links(at.sidebar)
-    assert [p.proto.label for p in links] == ["Rechercher un métier", "Explorer les formations"]
+    assert [p.proto.label for p in links][:2] == ["Rechercher un métier", "Explorer les formations"]
     assert links[1].proto.page == "formations"
     assert at.text_input(key="f_q") and at.button(key="btn-rechercher")  # search unchanged
     assert [n for n, _ in executor.calls] == ["lister_domaines"]  # no training query there

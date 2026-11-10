@@ -649,6 +649,7 @@ def test_app_files():
     assert [p.relative_to(APP).as_posix() for p in APP_FILES] == [
         "common.py",
         "pages/explorer_formations.py",
+        "pages/explorer_marche_travail.py",
         "pages/fiche_metier.py",
         "pages/rechercher_metier.py",
         "streamlit_app.py",
@@ -685,5 +686,9 @@ def test_only_registered_contracts_are_used():
         "couverture_onisep",
         "rechercher_formations_onisep",
         "metiers_par_formation_onisep",
+        # Phase 15D — Explorer le marché du travail (BMO)
+        "synthese_zones_bmo",
+        "recrutement_bmo",
+        "lister_zones_geo",
     }
     assert used <= set(c.CONTRACTS)

@@ -23,6 +23,7 @@ PAGE_SIZE: int = int(_APP.get("page_size", 20))
 SEARCH_PAGE = "pages/rechercher_metier.py"
 PROFILE_PAGE = "pages/fiche_metier.py"
 TRAINING_PAGE = "pages/explorer_formations.py"
+LABOUR_PAGE = "pages/explorer_marche_travail.py"
 
 OUI_NON = {"O": "Oui", "N": "Non"}
 

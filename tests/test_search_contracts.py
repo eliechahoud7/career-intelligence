@@ -74,10 +74,10 @@ IDS = [k.name for k in CONTRACTS]
 # --- Registry <-> files --------------------------------------------------------------------
 
 
-def test_twenty_one_contracts_one_file_each():
-    assert len(CONTRACTS) == 21
+def test_twenty_two_contracts_one_file_each():
+    assert len(CONTRACTS) == 22
     assert sorted(k.file for k in CONTRACTS) == [f.name for f in QUERY_FILES]
-    assert [f.name[:3] for f in QUERY_FILES] == [f"q{i:02d}" for i in range(1, 22)]
+    assert [f.name[:3] for f in QUERY_FILES] == [f"q{i:02d}" for i in range(1, 23)]
 
 
 @pytest.mark.parametrize("contract", CONTRACTS, ids=IDS)
@@ -439,3 +439,40 @@ def test_couverture_onisep_counts_resolved_codes_only():
 def test_training_contracts_reject_invalid_values(name, kwargs, message):
     with pytest.raises(ValueError, match=message):
         c.bind(name, **kwargs)
+
+
+# --- Phase 15D: labour market (BMO) ----------------------------------------------------------
+
+
+def test_synthese_zones_bmo_keeps_minimum_semantics():
+    k = c.get_contract("synthese_zones_bmo")
+    sql = sql_of(k)
+    code = code_only(sql)
+    assert k.reads == ("gold.bmo_recrutement", "gold.source_licence")
+    assert k.licence_object == "bmo_recrutement"
+    measures = [col for col in k.columns if col.startswith("nb_projets_")]
+    assert measures == [
+        "nb_projets_recrutement_minimum",
+        "nb_projets_difficiles_minimum",
+        "nb_projets_saisonniers_minimum",
+    ]
+    for m in measures:  # sum of minimums: NULL stays NULL, never coalesced to 0
+        assert f"sum(b.{m}) AS {m}" in code
+    assert "coalesce" not in code.lower()
+    assert not re.search(r"nb_projets_\w+\s*[-+*/]|[-+*/]\s*\w*\.?nb_projets_", code)
+    assert "'minimum' AS nature_valeur" in sql
+    for i in ("recrutement", "difficiles", "saisonniers"):
+        assert f"est_complet_{i}" in k.columns and f"nb_familles_secretes_{i}" in k.columns
+        assert f"bool_and(b.est_complet_{i})" in code
+    assert not re.search(r"\b(code_rome|code_fap22|code_fap86|taux|ratio)\b", code)
+
+
+def test_synthese_zones_bmo_parameters():
+    b = c.bind("synthese_zones_bmo", niveau_geo="region")
+    assert b.parameters == {"niveau_geo": "region", "page_size": 20, "offset": 0}
+    with pytest.raises(ValueError, match="required"):
+        c.bind("synthese_zones_bmo")
+    with pytest.raises(ValueError, match="not in"):
+        c.bind("synthese_zones_bmo", niveau_geo="bassin")
+    with pytest.raises(ValueError, match="unknown"):
+        c.bind("synthese_zones_bmo", niveau_geo="region", code_fap228="S1X20")

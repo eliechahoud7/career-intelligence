@@ -464,7 +464,7 @@ Approved rules (D2–D10):
 ## 7. Search layer (Phase 14) — `career_intelligence.search`
 
 Views over Gold (nothing materialized) built by `sql/search/01_search.sql`, validated by
-`sql/search/01_search_checks.sql` (34 `check_*`), plus 21 parameterized query contracts in
+`sql/search/01_search_checks.sql` (34 `check_*`), plus 22 parameterized query contracts in
 `sql/search/queries/` described by the registry `src/career_intelligence/search/contracts.py`.
 
 | View | Grain / key | Rows (2026-11-09) | Reads | Licence |
@@ -511,6 +511,16 @@ ONISEP grain (D7) and the unresolved codes (D6). `couverture_onisep` computes th
 from Gold: **392 / 1,923** ROME codes (≈ 20.4 %) have at least one ONISEP training link. The
 ONISEP source cites 407 ROME codes, but only 392 reach a training in Gold; the 6 unresolved ONISEP
 codes are counted separately and never added to the coverage (measured 2026-11-10).
+
+**Labour market (Phase 15D, q22).** `synthese_zones_bmo` sums the published FAP228 minimums of
+an area (still a minimum; NULL only when every family is hidden), with per-indicator counts of
+fully hidden families and hidden cells. Totals are identical at every level and equal Silver:
+2,237,486 recruitment / 965,188 difficult / 722,592 seasonal projects. No area is complete for
+any indicator. The page uses BMO labels only (identical to FAP228 labels for all 217 families);
+no FAP22/FAP86 grouping (DARES licence unconfirmed) and no difficulty rate (ratio of minimums).
+Family x area pairs absent from the source (4,207 at department level) are shown as « non
+publié », never 0. Known Gold defect: the BMO attribution in `gold.source_licence` reads
+"Main-dOeuvre" (apostrophe lost); displayed as stored.
 
 ## 8. Open items
 

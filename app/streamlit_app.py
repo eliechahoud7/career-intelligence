@@ -4,7 +4,15 @@ Run from the project root:  streamlit run app/streamlit_app.py --server.address 
 """
 
 import streamlit as st
-from common import PROFILE_PAGE, SEARCH_PAGE, TITLE, TRAINING_PAGE, apply_style, brand
+from common import (
+    LABOUR_PAGE,
+    PROFILE_PAGE,
+    SEARCH_PAGE,
+    TITLE,
+    TRAINING_PAGE,
+    apply_style,
+    brand,
+)
 
 st.set_page_config(page_title=TITLE, page_icon=":material/insights:", layout="centered")
 apply_style()
@@ -13,9 +21,13 @@ search = st.Page(SEARCH_PAGE, title="Rechercher un métier", icon=":material/sea
 training = st.Page(
     TRAINING_PAGE, title="Explorer les formations", icon=":material/school:", url_path="formations"
 )
+labour = st.Page(
+    LABOUR_PAGE, title="Explorer le marché du travail", icon=":material/work:", url_path="marche"
+)
 pages = [
     search,
     training,
+    labour,
     st.Page(PROFILE_PAGE, title="Fiche métier", url_path="fiche", visibility="hidden"),
 ]
 
@@ -30,5 +42,6 @@ with st.sidebar:
     st.divider()
     st.page_link(search, label="Rechercher un métier", icon=":material/search:")
     st.page_link(training, label="Explorer les formations", icon=":material/school:")
+    st.page_link(labour, label="Explorer le marché du travail", icon=":material/work:")
 
 page.run()

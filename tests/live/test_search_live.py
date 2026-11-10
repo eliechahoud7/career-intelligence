@@ -99,6 +99,7 @@ SAMPLES = {
     "parcourir_domaines_formation": {"code_grand_domaine_formacode": "00109"},
     "metiers_par_formation_onisep": {"identifiant_formation": "FOR.6052"},
     "couverture_onisep": {},
+    "synthese_zones_bmo": {"niveau_geo": "region"},
 }
 
 
@@ -377,3 +378,61 @@ def test_couverture_onisep_matches_gold(conn):
     )
     # Never more than the 407 ROME codes cited by the ONISEP source (docs/DATA_SOURCES.md).
     assert r["nb_metiers_avec_formation"] <= 407 < r["nb_metiers_rome"]
+
+
+# --- Phase 15D: labour market (BMO) --------------------------------------------------------
+
+BMO_SQL = "FROM career_intelligence.gold.bmo_recrutement"
+MESURES = ("recrutement", "difficiles", "saisonniers")
+
+
+@pytest.mark.parametrize(
+    ("niveau", "zones"), [("national", 1), ("region", 18), ("departement", 101)]
+)
+def test_synthese_zones_bmo_matches_gold(conn, niveau, zones):
+    rows = run_all(conn, "synthese_zones_bmo", niveau_geo=niveau)
+    assert len(rows) == zones
+    assert {r["annee"] for r in rows} == {"2026"}
+    assert {r["nature_valeur"] for r in rows} == {"minimum"}
+    for m in MESURES:
+        col = f"nb_projets_{m}_minimum"
+        assert sum(r[col] or 0 for r in rows) == scalar(
+            conn, f"SELECT sum({col}) {BMO_SQL} WHERE niveau_geo = '{niveau}'"
+        )
+        assert sum(r[f"nb_familles_secretes_{m}"] for r in rows) == scalar(
+            conn, f"SELECT count_if({col} IS NULL) {BMO_SQL} WHERE niveau_geo = '{niveau}'"
+        )
+    assert sum(r["nb_familles_publiees"] for r in rows) == scalar(
+        conn, f"SELECT count(*) {BMO_SQL} WHERE niveau_geo = '{niveau}'"
+    )
+
+
+def test_synthese_zones_bmo_same_total_at_every_level(conn):
+    totals = {
+        n: sum(
+            r["nb_projets_recrutement_minimum"] or 0
+            for r in run_all(conn, "synthese_zones_bmo", niveau_geo=n)
+        )
+        for n in ("national", "region", "departement")
+    }
+    assert len(set(totals.values())) == 1
+    assert totals["national"] == scalar(
+        conn, "SELECT sum(nb_projets_recrutement) FROM career_intelligence.silver.bmo_2026"
+    )
+
+
+def test_synthese_zones_bmo_zone_detail_and_secrecy(conn):
+    (idf,) = [
+        r for r in run_all(conn, "synthese_zones_bmo", niveau_geo="region") if r["code_geo"] == "11"
+    ]
+    families = run_all(conn, "recrutement_bmo", code_geo="11", niveau_geo="region")
+    assert idf["nb_familles_publiees"] == len(families)
+    for m in MESURES:
+        col = f"nb_projets_{m}_minimum"
+        assert idf[col] == sum(f[col] or 0 for f in families)
+        assert idf[f"nb_cellules_secretes_{m}"] == sum(
+            f[f"nb_cellules_secretes_{m}"] for f in families
+        )
+        assert idf[f"est_complet_{m}"] == all(f[f"est_complet_{m}"] for f in families)
+    cols, _ = run(conn, "synthese_zones_bmo", niveau_geo="region")
+    assert "code_rome" not in cols
