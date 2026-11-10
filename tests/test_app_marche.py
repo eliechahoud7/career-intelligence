@@ -30,7 +30,8 @@ from tests.test_app_formations import page_links  # noqa: E402
 PAGE = APP / common.LABOUR_PAGE
 BMO = {
     "licence": "Licence Ouverte (fr-lo)",
-    "attribution": "France Travail – Enquête Besoins en Main-d'Oeuvre (BMO) 2026",
+    # As stored in gold.source_licence (apostrophe lost): corrected for display by the page.
+    "attribution": "France Travail – Enquête Besoins en Main-dOeuvre (BMO) 2026",
 }
 ZONES = {
     "national": [("FR", "France")],
@@ -90,10 +91,10 @@ RECRUTEMENT = [
 ]
 
 
-def synthese(niveau):
+def synthese(niveau, recrutement=RECRUTEMENT):
     rows = []
     for code, nom in ZONES[niveau]:
-        zone = [r for r in RECRUTEMENT if r["niveau_geo"] == niveau and r["code_geo"] == code]
+        zone = [r for r in recrutement if r["niveau_geo"] == niveau and r["code_geo"] == code]
         total = {}
         for m in ("recrutement", "difficiles", "saisonniers"):
             vals = [r[f"nb_projets_{m}_minimum"] for r in zone]
@@ -113,7 +114,7 @@ def synthese(niveau):
                 "nature_valeur": "minimum",
                 "_source_sha256": "735d0443",
                 **total,
-                **BMO,
+                **{k: zone[0][k] for k in BMO},  # licence as stored
             }
         )
     return rows
@@ -130,7 +131,7 @@ class BmoExecutor(FakeExecutor):
     def run(self, bound):
         name, p = bound.contract.name, bound.parameters
         if name == "synthese_zones_bmo":
-            rows = synthese(p["niveau_geo"]) if self.recrutement else []
+            rows = synthese(p["niveau_geo"], self.recrutement) if self.recrutement else []
         elif name == "lister_zones_geo":
             rows = [
                 {"niveau_geo": n, "code_geo": c, "libelle_geo": lib, **BMO}
@@ -222,6 +223,21 @@ def test_bmo_attribution_only(fake):
     assert "France Travail" in sources[0] and "BMO" in sources[0]
     assert "Licence Ouverte" in sources[0]
     assert not any("Dares" in c or "Onisep" in c for c in captions)
+
+
+@pytest.mark.parametrize(
+    "stored",
+    [
+        "France Travail – Enquête Besoins en Main-dOeuvre (BMO) 2026",  # current Gold value
+        "France Travail – Enquête Besoins en Main-d'Oeuvre (BMO) 2026",  # value of the Gold script
+    ],
+)
+def test_bmo_attribution_typo_corrected_for_display(fake, stored):
+    # Regression: Gold stores "Main-dOeuvre"; the page must show « Main-d'œuvre ».
+    fake(BmoExecutor(recrutement=[{**r, "attribution": stored} for r in RECRUTEMENT]))
+    text = text_of(marche())
+    assert "France Travail – Enquête Besoins en Main-d'œuvre (BMO) 2026" in text
+    assert "Main-dOeuvre" not in text and "Main-d'Oeuvre" not in text
 
 
 def test_no_rome_link_no_rate_no_fap_hierarchy(fake):

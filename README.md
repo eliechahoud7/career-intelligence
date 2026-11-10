@@ -2,60 +2,87 @@
 
 **Multi-Source Data Integration & Search Platform** for professional orientation.
 
-Career Intelligence integrates several external data sources — occupations, skills,
-training programmes and labour-market information — into a unified Delta Lake model
-on Databricks, and exposes it through a Streamlit search application.
+Career Intelligence integrates French open data on occupations, skills, training programmes and
+recruitment intentions into a layered model on Databricks, and exposes it through a French-language
+Streamlit application.
 
-> **Status:** Phase 0 — repository initialised. Data sources are being verified;
-> no connector or application feature is implemented yet.
+> **Status:** complete and validated as an academic portfolio project, run locally. Six official
+> datasets are loaded from Bronze to Gold, exposed by a SQL search layer of 22 query contracts and
+> used by four application pages. 619 offline tests and 55 live Databricks tests pass, and every
+> data-quality check (`check_*`) of the SQL check files is `true`.
 
-## Features (planned)
+## Features
 
-- 🔎 Search occupations and read their descriptions
-- 🧩 Explore the skills associated with each occupation
-- 🎓 Discover training programmes linked to occupations and skills
-- 📈 Consult employment / labour-market indicators
+The Streamlit application (French) has four pages:
+
+| Page | Content | Sources |
+|---|---|---|
+| **Rechercher un métier** | Search occupations by name, ROME code or keyword, with domain, professional domain, *cadre* and regulated-occupation filters, pagination and a « Rechercher » button | ROME 4.0 v62 |
+| **Fiche métier** | Occupation profile: definition, access, job titles, skills (savoir-faire, savoir-être, savoirs, work contexts), RIASEC and transition indicators | ROME 4.0 v62 |
+| **Explorer les formations** | Formacode V14 training domains (14 grand domains, 1,220 descriptors linked to an occupation) and their occupations; ONISEP training programmes, their occupations and their partial coverage (392 / 1,923 occupations) | Formacode V14, ROME ↔ Formacode, ONISEP (ODbL) |
+| **Explorer le marché du travail** | BMO 2026 recruitment intentions by FAP228 family and area: area comparisons, families, recruitment difficulties; values are minimums because of statistical secrecy | BMO 2026 |
+
+BMO figures are never attached to ROME occupations, and the DARES correspondence (ROME **V3**) is
+loaded into Gold but not shown in the application (its licence is unconfirmed).
 
 ## Architecture
 
 ```
-External APIs ─► Bronze (raw) ─► Silver (clean) ─► Gold (integrated) ─► Streamlit
-                 └──────────── Delta Lake on Databricks Free Edition ────────────┘
+Official open-data files ─► Python connectors (download, validate, stage as Parquet)
+   ─► Bronze ─► Silver ─► Gold ─► Search views + 22 SQL query contracts   (Databricks SQL, Delta)
+   ─► SearchClient (read-only, validated parameters) ─► Streamlit application
 ```
+
+- **Ingestion** (`src/career_intelligence/ingestion/`): local Python connectors download the
+  verified files (or read manually downloaded ones), validate them and write Bronze-ready Parquet
+  files with lineage columns, uploaded to a Unity Catalog volume.
+- **Bronze → Silver → Gold → Search**: Databricks SQL scripts in `sql/`, each with a check file
+  whose `check_*` columns must all be `true`. Transformations are written in **Databricks SQL**,
+  not PySpark.
+- **Search layer**: 4 views over Gold and 22 parameterized query contracts
+  (`sql/search/queries/`), described by the registry `career_intelligence.search.contracts`.
+- **Application**: `SearchClient` runs only the registered contract files, unchanged and
+  read-only, on a SQL warehouse; the Streamlit pages contain no SQL.
 
 See the full [project specification](docs/PROJECT_SPECIFICATION.md).
 
 ## Tech stack
 
-Python 3.12 · PySpark · Delta Lake · Databricks Free Edition · SQL · REST APIs · Streamlit · pytest · Ruff
+Python 3.12 · pandas · Databricks Free Edition (Unity Catalog, Delta Lake, serverless SQL
+warehouse) · Databricks SQL · databricks-sql-connector · Streamlit · pytest · Ruff
 
 ## Repository layout
 
 ```
 career-intelligence/
 ├── app/                      # Streamlit application
+│   ├── streamlit_app.py      # entry point and sidebar navigation
+│   ├── common.py             # data access through SearchClient, shared components, styles
+│   └── pages/                # rechercher_metier, fiche_metier, explorer_formations,
+│                             # explorer_marche_travail
 ├── config/
 │   ├── settings.example.yaml # non-secret settings template
-│   └── sources.yaml          # candidate data-source registry (unverified)
+│   └── sources.yaml          # verified data-source registry (URLs, checksums, licences)
 ├── data/                     # local working data (git-ignored)
 ├── docs/
 │   ├── PROJECT_SPECIFICATION.md
-│   └── DATA_SOURCES.md       # source verification log
-├── notebooks/                # Databricks notebooks: 00_setup, 01_bronze, 02_silver, 03_gold
-├── scripts/                  # helper scripts (PowerShell / Python)
-├── sql/                      # Databricks SQL DDL and views
+│   └── DATA_SOURCES.md       # source verification log, Gold and Search documentation
+├── sql/                      # Databricks SQL: 00_setup, bronze, silver, gold, search
+│   └── search/queries/       # q01…q22 parameterized query contracts
 ├── src/career_intelligence/  # Python package
 │   ├── config.py             # settings & secrets loading
-│   ├── ingestion/            # source connectors (Bronze)
-│   ├── transformation/       # PySpark transformations (Silver/Gold)
-│   ├── search/               # query layer for the app
-│   └── utils/                # logging and helpers
+│   ├── ingestion/            # source connectors (Bronze-ready Parquet)
+│   ├── search/               # contracts registry, Databricks connection, SearchClient
+│   └── utils/                # logging
 ├── tests/                    # pytest suite (tests/live: opt-in Databricks tests)
 ├── .env.example              # environment-variable template
 ├── pyproject.toml
 ├── requirements.txt
 └── requirements-dev.txt
 ```
+
+`notebooks/`, `scripts/` and `src/career_intelligence/transformation/` are empty placeholders
+from the initial structure: every transformation is a SQL script in `sql/`.
 
 ## Getting started (Windows / PowerShell)
 
@@ -144,8 +171,8 @@ Load steps (run SQL on the SQL warehouse, e.g. from the SQL editor):
 16. `sql/gold/01_gold.sql` (schema `gold`: 3 tables + 6 views, built from Silver only) and `sql/gold/01_gold_checks.sql` — every `check_*` must be `true`
 17. `sql/search/01_search.sql` (schema `search`: 4 views over Gold) and `sql/search/01_search_checks.sql` — every `check_*` must be `true`
 
-PySpark is provided by the Databricks runtime. For local Spark execution (requires Java 17)
-install the optional extra: `python -m pip install -e ".[spark]"`.
+Every step is a Databricks SQL script run on the SQL warehouse; no PySpark code or local Spark is
+needed (the optional `[spark]` extra in `pyproject.toml` is unused).
 
 ## Search layer
 
@@ -179,11 +206,9 @@ match tier (`rang_pertinence`). BMO figures are never linked to ROME occupations
 
 ## Lancer l'application
 
-The Streamlit application (French) currently offers profession search, the occupation profile
-(ROME 4.0 v62) and « Explorer les formations » (Formacode V14 training domains linked to
-occupations, and ONISEP training programmes with their partial coverage) and « Explorer le marché du travail »
-(BMO 2026 recruitment intentions by FAP228 family and area; minimums, no ROME link). It queries Databricks only through the search contracts; credentials stay on the
-server.
+The Streamlit application (French) has four pages — « Rechercher un métier », « Fiche métier »,
+« Explorer les formations » and « Explorer le marché du travail » (see [Features](#features)). It
+queries Databricks only through the search contracts; credentials stay on the server.
 
 1. Install the Databricks client: `python -m pip install -e ".[databricks]"`
 2. Log in once with the CLI (the token is obtained in memory, never stored by the app):
@@ -203,20 +228,27 @@ server.
 
 ## Data sources
 
-No source is assumed accessible. Each candidate is verified (documentation, licence,
-authentication, test request, reachability from Databricks) before a connector is written.
-Progress is tracked in [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md).
+Six datasets are loaded, all from official publishers: ROME 4.0 v62 (France Travail), BMO 2026
+(France Travail), ROME ↔ Formacode V14 correspondence (France Travail) and Formacode V14 thesaurus
+(Centre Inffo), ONISEP Idéo open data, and DARES FAP 2021 (nomenclature and ROME V3 × qualification
+correspondence). Each was verified (documentation, licence, test download, checksum) before its
+connector was written; the francetravail.io APIs were not used. Details:
+[docs/DATA_SOURCES.md](docs/DATA_SOURCES.md).
 
 ## Roadmap
 
 0. ✅ Repository initialisation
-1. ⏳ Data-source verification
-2. Databricks workspace setup
-3. Bronze connectors
-4. Silver transformations & quality checks
-5. Gold integrated model & SQL views
-6. Search layer & Streamlit app
-7. Documentation & evaluation
+1. ✅ Data-source verification
+2. ✅ Databricks workspace setup (catalog, schemas, volume)
+3. ✅ Bronze connectors and tables
+4. ✅ Silver transformations & quality checks
+5. ✅ Gold integrated model & SQL views
+6. ✅ Search layer & Streamlit application (four pages)
+7. ✅ Final integration, validation & documentation
+
+Not implemented by decision: DARES qualification page (licence unconfirmed), public deployment
+(Databricks Free Edition terms), BMO figures per ROME occupation. See
+[docs/PROJECT_SPECIFICATION.md](docs/PROJECT_SPECIFICATION.md) §6.
 
 ## License
 

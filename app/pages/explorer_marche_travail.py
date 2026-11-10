@@ -8,6 +8,7 @@ a hidden value (every cell secret: « secret statistique »), a family x area pa
 source (« non publié ») and any other missing value (« non disponible »).
 """
 
+import re
 from typing import Any
 
 import pandas as pd
@@ -22,6 +23,9 @@ INDICATEURS = {
 NIVEAUX = {"region": "Régions", "departement": "Départements"}
 TOP = 15
 SECRET, NON_PUBLIE, NON_DISPONIBLE = "secret statistique", "non publié", "non disponible"
+# Display-only correction: gold.source_licence stores "Main-dOeuvre" (apostrophe lost when the
+# Gold script was run, although sql/gold/01_gold.sql writes "Main-d''Oeuvre"). Gold is unchanged.
+MAIN_D_OEUVRE = re.compile(r"Main-d'?Oeuvre")
 
 
 def nombre(n: Any) -> str:
@@ -343,4 +347,4 @@ with familles_tab:
 with difficultes:
     onglet_difficultes(load("fetch_all", "synthese_zones_bmo", niveau_geo="region").rows)
 
-attribution(france["licence"], france["attribution"])
+attribution(france["licence"], MAIN_D_OEUVRE.sub("Main-d'œuvre", france["attribution"]))
