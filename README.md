@@ -431,7 +431,9 @@ python -m pytest tests/live
 These results validate the implementation and the loaded data at that date. They do not cover
 visual rendering in browsers or performance under load.
 
-## Limitations, Scope & Licence
+## Limitations & Future Work
+
+### Limitations
 
 **Platform and deployment**
 
@@ -461,7 +463,22 @@ visual rendering in browsers or performance under load.
 The scope decisions behind these limits are documented in
 [docs/PROJECT_SPECIFICATION.md](docs/PROJECT_SPECIFICATION.md) §6.
 
-**Licence**
+### Future Improvements
+
+These are possible next steps, not implemented features:
+
+- **Public deployment:** move the Gold and Search layers to a platform whose terms allow
+  third-party access, so the application can be deployed publicly.
+- **DARES data:** expose the DARES correspondence in the application once its licence is
+  confirmed.
+- **Wider training coverage:** add further official training sources to extend coverage beyond
+  the 392 ROME occupations with an ONISEP link, still without inventing relationships.
+- **Scheduled refresh:** re-run the Bronze → Silver → Gold pipeline and its data-quality checks
+  when sources publish new releases (for example the annual BMO survey).
+- **Search and recommendation extensions:** semantic search, recommendations or LLM features,
+  listed as possible future extensions in the project specification.
+
+## Licence
 
 The code is **Proprietary — All Rights Reserved** (academic portfolio project). No licence is
 granted to copy, modify or redistribute it. Each data source remains subject to its own licence
